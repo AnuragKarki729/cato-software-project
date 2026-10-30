@@ -1,3 +1,5 @@
+# Responsibility 8: Invitations
+# Owner: Siwakorn P. (6600139)
 from datetime import datetime
 
 from sqlmodel import Field, SQLModel

@@ -1,3 +1,5 @@
+# Responsibility 4: Recruiter filter page
+# Owner: Siwakorn P. (6600139)
 """Recruiter filter page (Responsibility 4)."""
 from fastapi import APIRouter, Depends
 from sqlmodel import Session

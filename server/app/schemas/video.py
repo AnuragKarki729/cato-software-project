@@ -1,3 +1,5 @@
+# Responsibility 1: Video upload and video retrieval
+# Owner: Anurag Karki (6838852)
 from datetime import datetime
 
 from pydantic import BaseModel
@@ -10,3 +12,7 @@ class VideoOut(BaseModel):
     duration_seconds: float
     url: str
     created_at: datetime
+
+
+class FeedItem(VideoOut):
+    name: str  # applicant's name

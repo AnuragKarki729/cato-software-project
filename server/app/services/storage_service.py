@@ -1,3 +1,5 @@
+# Responsibility 1: Video upload and video retrieval
+# Owner: Anurag Karki (6838852)
 """Shared file storage for videos (Responsibility 1) and resumes (Responsibility 2).
 
 Files are saved in a Docker volume (STORAGE_DIR). Cloudflare R2 can be added later

@@ -93,6 +93,7 @@ All paths start with `/api`. Try them at http://localhost:8000/docs.
 | GET | `/profiles/{applicant_id}` | logged in | 2 | 501 |
 | POST | `/videos` | applicant | 1 | 501 |
 | GET | `/videos/applicant/{applicant_id}` | logged in | 1 | 501 |
+| GET | `/videos/{video_id}` | logged in | 1 | 501 |
 | DELETE | `/videos/{video_id}` | applicant | 1 | 501 |
 | GET | `/feed?page=1` | logged in | 3 (optional) | 501 |
 | GET | `/filters/me` | recruiter | 4 | 501 |
@@ -102,7 +103,11 @@ All paths start with `/api`. Try them at http://localhost:8000/docs.
 | GET | `/invitations/received` | applicant | 8 | 501 |
 | GET | `/invitations/sent` | recruiter | 8 | 501 |
 | GET | `/saved/searches` | recruiter | 6 (optional) | 501 |
+| POST | `/saved/searches` | recruiter | 6 (optional) | 501 |
+| DELETE | `/saved/searches/{search_id}` | recruiter | 6 (optional) | 501 |
 | GET | `/saved/bookmarks` | recruiter | 6 (optional) | 501 |
+| POST | `/saved/bookmarks` | recruiter | 6 (optional) | 501 |
+| DELETE | `/saved/bookmarks/{bookmark_id}` | recruiter | 6 (optional) | 501 |
 | GET | `/files/{key}` | anyone | uploads | ✅ |
 
 Each unbuilt endpoint has a `# TODO` comment describing what it should do.

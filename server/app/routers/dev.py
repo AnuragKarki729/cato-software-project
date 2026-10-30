@@ -1,3 +1,5 @@
+# Responsibility 7: Sign up, log in and roles
+# Owner: Aye Myo Myat (6837919)
 """Development helpers. Remove once real login (Responsibility 7) is finished."""
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, select

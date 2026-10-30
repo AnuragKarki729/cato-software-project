@@ -1,3 +1,5 @@
+# Responsibility 8: Invitations
+# Owner: Siwakorn P. (6600139)
 """Invitations (Responsibility 8)."""
 from fastapi import APIRouter, Depends
 from sqlmodel import Session

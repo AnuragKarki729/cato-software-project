@@ -31,10 +31,12 @@ Open it at http://localhost:5173. Changes in `src/` reload the page automaticall
 | `/` | `Landing.jsx` | everyone | – | What Cato is, Sign up / Log in links ✅ |
 | `/signup` | `SignUp.jsx` | everyone | 7 | Sign up form (name, email, password, role, company name) |
 | `/login` | `LogIn.jsx` | everyone | 7 | Log in form |
-| `/onboarding` | `Onboarding.jsx` | applicant | 2, 1 | Step 1: profile form + resume upload · Step 2: pitch video recorder |
+| `/onboarding/profile` | `OnboardingProfile.jsx` | applicant | 2 | Profile form + resume upload |
+| `/onboarding/video` | `OnboardingVideo.jsx` | applicant | 1 | Pitch video recorder |
 | `/profile` | `MyProfile.jsx` | applicant | 1, 2 | Profile details + Edit, resume viewer, video gallery |
 | `/invitations` | `Invitations.jsx` | applicant | 8 | Invitation cards |
-| `/find` | `FindCandidates.jsx` | recruiter | 4, 5 | Filter form + ranked results list |
+| `/find` | `FindCandidates.jsx` | recruiter | 4 | Filter form |
+| `/results` | `RankedResults.jsx` | recruiter | 5 | Ranked results list |
 | `/applicants/:applicantId` | `ApplicantProfile.jsx` | recruiter | 1, 2, 8 | Profile, resume, videos (read-only) + Invite button |
 | `/sent-invitations` | `SentInvitations.jsx` | recruiter | 8 | List of invited applicants |
 | `/feed` | `VideoFeed.jsx` | both | 3 (optional) | Full-screen pitch videos |
@@ -111,11 +113,12 @@ Style with Tailwind classes in `className`. There are no separate CSS files per 
 <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
   <h2 className="text-lg font-semibold">{applicant.name}</h2>
   <p className="text-sm text-gray-500">{applicant.field_of_study} · Year {applicant.year}</p>
-  <span className="rounded bg-violet-100 px-2 py-1 text-violet-700">{applicant.match_score}</span>
+  <span className="rounded bg-brand-50 px-2 py-1 text-brand-700">{applicant.match_score}</span>
 </div>
 ```
 
-Use **violet** (`violet-600` / `violet-700`) as the main colour so pages look consistent.
+The theme comes from Figma and lives in `src/styles.css`. Use `brand-*` colours and the shared classes
+(`btn-primary`, `btn-secondary`, `card`) so pages look consistent. Mock data for unfinished parts is in `src/mocks.js`.
 Make layouts work on phone widths too (e.g. `flex-col md:flex-row`).
 
 ## Fixed options in forms

@@ -1,3 +1,5 @@
+# Responsibility 7: Sign up, log in and roles
+# Owner: Aye Myo Myat (6837919)
 from sqlmodel import Field, SQLModel
 
 

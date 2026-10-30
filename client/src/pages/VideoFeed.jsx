@@ -1,7 +1,22 @@
 import TodoPage from "../components/TodoPage.jsx";
 
-// Optional. Full-screen pitch videos, one at a time, with an "Open profile" button.
-// GET /api/feed?page=1
+// Endpoints: GET /api/feed?page=1
+const OWNERS = [
+  { responsibility: "Responsibility 3: Short-form video feed (optional)", name: "Anurag Karki", id: "6838852" },
+];
+
+const LINKS = [
+  ["/applicants/1", "Open profile"],
+  ["/feed", "Next pitch"],
+];
+
 export default function VideoFeed() {
-  return <TodoPage title="Video feed (optional)" responsibility={3} />;
+  return (
+    <TodoPage
+      title="Video feed"
+      owners={OWNERS}
+      location="client/src/pages/VideoFeed.jsx"
+      links={LINKS}
+    />
+  );
 }

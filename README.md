@@ -36,6 +36,12 @@ To wipe them and start fresh with the dummy data: `docker compose down -v`.
 To open the app from other devices (e.g. the demo), expose port 5173 with a Cloudflare Tunnel
 (`cloudflared tunnel --url http://localhost:5173`) or an nginx reverse proxy.
 
+## Deployment
+
+Just push to `main`. GitHub Actions (`.github/workflows/deploy.yml`) runs the tests, builds the images,
+pushes them to GHCR, and updates the app on the team leader's PC (the host).
+The live app runs on port 80 of that PC, with nginx serving the React files and forwarding `/api` to the server.
+
 ## Logging in while real login is not built yet
 
 The navbar has an **"Acting as (dev)"** dropdown. Pick any dummy user (recruiters and applicants are
@@ -83,12 +89,12 @@ Search the code for `Responsibility N` to find your files. Unbuilt endpoints ret
 | # | Responsibility | Server (`server/app/`) | Client (`client/src/pages/`) |
 |---|---|---|---|
 | **Group A – Applicant profile and videos** ||||
-| 1 | Video upload and video retrieval | `routers/videos.py`, `services/storage_service.py` ✅ | `Onboarding.jsx` (step 2), `MyProfile.jsx` |
-| 2 | Applicant profile and resume | `routers/profiles.py` | `Onboarding.jsx` (step 1), `MyProfile.jsx`, `ApplicantProfile.jsx` |
+| 1 | Video upload and video retrieval | `routers/videos.py`, `services/storage_service.py` ✅ | `OnboardingVideo.jsx`, `MyProfile.jsx` |
+| 2 | Applicant profile and resume | `routers/profiles.py` | `OnboardingProfile.jsx`, `MyProfile.jsx`, `ApplicantProfile.jsx` |
 | 3 | Short-form video feed *(optional)* | `routers/feed.py` | `VideoFeed.jsx` |
 | **Group B – Recruiter search and matching** ||||
-| 4 | Recruiter filter page | `routers/filters.py` | `FindCandidates.jsx` (filter form) |
-| 5 | Candidate matching and ranked results | `routers/matching.py`, `services/matching_service.py` ✅ | `FindCandidates.jsx` (results) |
+| 4 | Recruiter filter page | `routers/filters.py` | `FindCandidates.jsx` |
+| 5 | Candidate matching and ranked results | `routers/matching.py`, `services/matching_service.py` ✅ | `RankedResults.jsx` |
 | 6 | Saved searches and bookmarks *(optional)* | `routers/saved.py` | `Saved.jsx` |
 | **Group C – Accounts and invitations** ||||
 | 7 | Sign up, log in and roles | `routers/auth.py`, `services/auth_service.py` | `SignUp.jsx`, `LogIn.jsx` |

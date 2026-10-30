@@ -1,3 +1,5 @@
+# Responsibility 6: Saved searches and bookmarks (optional)
+# Owner: Aye Myo Myat (6837919)
 from sqlmodel import Field, SQLModel
 
 

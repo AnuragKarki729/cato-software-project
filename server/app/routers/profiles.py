@@ -1,3 +1,5 @@
+# Responsibility 2: Applicant profile and resume
+# Owner: Nusrat Begam (6638009)
 """Applicant profile and resume (Responsibility 2)."""
 from fastapi import APIRouter, Depends, UploadFile
 from sqlmodel import Session

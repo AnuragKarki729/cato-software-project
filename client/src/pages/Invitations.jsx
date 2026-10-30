@@ -1,8 +1,21 @@
 import TodoPage from "../components/TodoPage.jsx";
 
-// Invitations the applicant received. GET /api/invitations/received
-// Each card shows: "[Recruiter name] from [Company name] is interested in you and is
-// sending this invitation to [applicant email] about a job vacancy."
+// Endpoints: GET /api/invitations/received
+const OWNERS = [
+  { responsibility: "Responsibility 8: Invitations", name: "Siwakorn P.", id: "6600139" },
+];
+
+const LINKS = [
+  ["/profile", "My profile"],
+];
+
 export default function Invitations() {
-  return <TodoPage title="Invitations" responsibility={8} />;
+  return (
+    <TodoPage
+      title="Invitations"
+      owners={OWNERS}
+      location="client/src/pages/Invitations.jsx"
+      links={LINKS}
+    />
+  );
 }

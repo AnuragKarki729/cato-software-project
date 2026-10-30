@@ -1,3 +1,5 @@
+# Responsibility 5: Candidate matching and ranked results
+# Owner: Nusrat Begam (6638009)
 from pydantic import BaseModel
 
 

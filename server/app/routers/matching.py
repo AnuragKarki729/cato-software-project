@@ -1,3 +1,5 @@
+# Responsibility 5: Candidate matching and ranked results
+# Owner: Nusrat Begam (6638009)
 """Candidate matching and ranked results (Responsibility 5)."""
 from fastapi import APIRouter, Depends
 from sqlmodel import Session

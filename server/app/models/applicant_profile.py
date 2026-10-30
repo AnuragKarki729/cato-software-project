@@ -1,3 +1,5 @@
+# Responsibility 2: Applicant profile and resume
+# Owner: Nusrat Begam (6638009)
 from sqlmodel import Field, SQLModel
 
 

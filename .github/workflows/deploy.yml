@@ -1,0 +1,43 @@
+# Every push to main: test, build the images, then update the app on the host machine.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+        working-directory: server
+      - run: uv run pytest
+        working-directory: server
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - run: docker build -t ghcr.io/anuragkarki729/cato-server:latest server
+      - run: docker build -t ghcr.io/anuragkarki729/cato-client:latest -f client/Dockerfile.prod client
+      - run: docker push ghcr.io/anuragkarki729/cato-server:latest
+      - run: docker push ghcr.io/anuragkarki729/cato-client:latest
+
+  deploy:
+    needs: build
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - run: docker compose -f docker-compose.prod.yml pull
+      - run: docker compose -f docker-compose.prod.yml up -d
+      - run: docker compose -f docker-compose.prod.yml restart nginx

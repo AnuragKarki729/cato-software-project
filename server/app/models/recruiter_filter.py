@@ -1,3 +1,5 @@
+# Responsibility 4: Recruiter filter page
+# Owner: Siwakorn P. (6600139)
 from sqlmodel import Field, SQLModel
 
 
