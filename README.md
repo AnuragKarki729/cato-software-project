@@ -51,7 +51,7 @@ docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-The app is then at http://localhost. To get a public link: `cloudflared tunnel --url http://localhost:80`.
+The app is then at http://localhost:8080. To get a public link: `cloudflared tunnel --url http://localhost:8080`.
 To update later, run `git pull`, then the `pull` and `up -d` commands again.
 
 ## Logging in while real login is not built yet
