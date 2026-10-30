@@ -38,9 +38,21 @@ To open the app from other devices (e.g. the demo), expose port 5173 with a Clou
 
 ## Deployment
 
-Just push to `main`. GitHub Actions (`.github/workflows/deploy.yml`) runs the tests, builds the images,
-pushes them to GHCR, and updates the app on the team leader's PC (the host).
-The live app runs on port 80 of that PC, with nginx serving the React files and forwarding `/api` to the server.
+Push to `main`. GitHub Actions (`.github/workflows/deploy.yml`) runs the tests, builds the images and
+pushes them to GHCR.
+
+To run the latest version on any laptop or Mac with Docker:
+
+```bash
+git clone https://github.com/AnuragKarki729/cato-software-project.git
+cd cato-software-project
+cp .env.example .env
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+The app is then at http://localhost. To get a public link: `cloudflared tunnel --url http://localhost:80`.
+To update later, run `git pull`, then the `pull` and `up -d` commands again.
 
 ## Logging in while real login is not built yet
 
