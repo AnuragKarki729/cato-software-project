@@ -76,11 +76,10 @@ const video = await api.post("/videos", form);
 <video src={video.url} controls />
 ```
 
-## Cloudflare R2 (later, optional)
+## Cloudinary
 
-The project document allows files to be stored either in the Docker volume or in Cloudflare R2
-(10 GB free, no download fees). To switch, only the three functions in `storage_service.py` change.
-Routers, models and the client stay the same. The Docker volume is the default and needs no setup.
+Set `CLOUDINARY_URL` in `.env` to store files in Cloudinary. Leave it empty to use the Docker volume.
+Routers, models and the client stay the same either way. Never commit the real value.
 
 ## Size
 

@@ -31,7 +31,7 @@ export default function App() {
       <main className="mx-auto max-w-5xl px-4 py-6">
         <Routes>
           {/* Everyone */}
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<Landing onUserChange={setUser} />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/login" element={<LogIn />} />
 

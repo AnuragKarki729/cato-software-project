@@ -1,4 +1,5 @@
 """Shared storage module used by Responsibilities 1 and 2."""
+import cloudinary
 import pytest
 
 from app.services import storage_service
@@ -22,3 +23,12 @@ def test_saved_file_is_served(client):
 def test_delete_rejects_paths_outside_storage():
     with pytest.raises(ValueError):
         storage_service.delete("../outside.txt")
+
+
+def test_cloudinary_links(monkeypatch):
+    cloudinary.config(cloud_name="demo")
+    monkeypatch.setattr(storage_service, "CLOUDINARY_URL", "on")
+    video = storage_service.get_url("videos/abc.mp4")
+    resume = storage_service.get_url("resumes/abc.pdf")
+    assert video == "https://res.cloudinary.com/demo/video/upload/v1/videos/abc.mp4"
+    assert resume == "https://res.cloudinary.com/demo/raw/upload/v1/resumes/abc.pdf"

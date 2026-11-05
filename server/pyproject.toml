@@ -12,6 +12,7 @@ dependencies = [
     "cryptography>=43",
     "python-multipart>=0.0.9",
     "pytest>=8",
+    "cloudinary>=1.46.3",
 ]
 
 [dependency-groups]

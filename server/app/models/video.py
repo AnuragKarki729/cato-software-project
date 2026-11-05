@@ -1,6 +1,6 @@
 # Responsibility 1: Video upload and video retrieval
 # Owner: Anurag Karki (6838852)
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlmodel import Field, SQLModel
 
@@ -12,4 +12,4 @@ class Video(SQLModel, table=True):
     file_location: str  # storage key of the video file
     kind: str  # "pitch" or "extra"
     duration_seconds: float
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

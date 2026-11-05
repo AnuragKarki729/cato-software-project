@@ -4,18 +4,14 @@ from sqlmodel import Session, select
 from app.models import ApplicantProfile, User
 
 RECRUITERS = [
-    ("Mia Recruiter", "mia@techcorp.test", "TechCorp"),
-    ("Sam Recruiter", "sam@designhub.test", "DesignHub"),
+    ("Aye Myo Myat", "aye@cato.test", "Cato"),
+    ("Siwakorn P.", "siwakorn@cato.test", "Cato"),
 ]
 
 APPLICANTS = [
     # name, email, university, field of study, year, gpa, skills, internships
-    ("Alex Kim", "alex@uni.test", "Mahidol University", "Computer Science", 4, 3.6, "Python,React,SQL", 2),
-    ("Bea Santos", "bea@uni.test", "Mahidol University", "Computer Science", 2, 3.1, "JavaScript,React", 0),
-    ("Chai Wong", "chai@uni.test", "Chulalongkorn University", "Information Technology", 3, 3.4, "Python,Data Analysis,SQL", 1),
-    ("Dana Lee", "dana@uni.test", "Chulalongkorn University", "Design", 5, 3.8, "Figma,Public Speaking", 3),
-    ("Eli Park", "eli@uni.test", "Kasetsart University", "Business", 3, 2.9, "Marketing,Project Management", 1),
-    ("Fah Narin", "fah@uni.test", "Kasetsart University", "Engineering", 4, 3.3, "Python,Java", 1),
+    ("Anurag Karki", "anurag@cato.test", "Kasetsart University", "Computer Science", 4, 3.5, "Python,React,SQL", 1),
+    ("Nusrat Begam", "nusrat@cato.test", "Mahidol University", "Information Technology", 4, 3.6, "Python,Data Analysis,SQL", 1),
 ]
 
 
