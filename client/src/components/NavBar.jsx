@@ -15,7 +15,7 @@ const RECRUITER_LINKS = [
   ["/feed", "Video feed"],
 ];
 
-// The "Acting as" dropdown is the temporary development login.
+// // The "Acting as" dropdown is the temporary development login.
 export default function NavBar({ user, onUserChange }) {
   const [devUsers, setDevUsers] = useState([]);
 
@@ -38,15 +38,7 @@ export default function NavBar({ user, onUserChange }) {
         <Link key={to} to={to} className="nav-link">{label}</Link>
       ))}
       <span className="flex-1" />
-      <label className="text-sm text-ink-muted">
-        Acting as (dev):{" "}
-        <select className="rounded border border-line px-2 py-1" value={getDevUserId() || ""} onChange={chooseUser}>
-          <option value="">Logged out</option>
-          {devUsers.map((u) => (
-            <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-          ))}
-        </select>
-      </label>
+      
     </nav>
   );
 }
