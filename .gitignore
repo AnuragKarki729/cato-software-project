@@ -1,11 +1,11 @@
-.env
+# Python-generated files
 __pycache__/
-*.pyc
-.pytest_cache/
-.venv/
-*.egg-info/
-data/
-node_modules/
+*.py[oc]
+build/
 dist/
-.local/
-docs/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.env

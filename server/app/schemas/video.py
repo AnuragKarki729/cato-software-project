@@ -1,5 +1,3 @@
-# Responsibility 1: Video upload and video retrieval
-# Owner: Anurag Karki (6838852)
 from datetime import datetime
 
 from pydantic import BaseModel

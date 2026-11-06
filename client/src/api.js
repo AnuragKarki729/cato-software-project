@@ -1,38 +1,101 @@
-// All calls to the server go through these helpers.
-// The temporary development login sends the chosen user's id in "X-User-Id".
-// Responsibility 7 will replace this with a real login token.
-
-export function getDevUserId() {
-  return localStorage.getItem("devUserId");
+// client/src/api.js
+export function setUserId(id) {
+  localStorage.setItem("userId", String(id));
 }
 
-export function setDevUserId(id) {
-  if (id) localStorage.setItem("devUserId", id);
-  else localStorage.removeItem("devUserId");
+export function getUserId() {
+  return localStorage.getItem("userId");
 }
 
-async function request(method, path, body) {
-  const headers = {};
-  const userId = getDevUserId();
-  if (userId) headers["X-User-Id"] = userId;
+export function setRole(role) {
+  localStorage.setItem("role", role);
+}
 
-  let payload;
-  if (body instanceof FormData) {
-    payload = body; // file uploads
-  } else if (body !== undefined) {
-    headers["Content-Type"] = "application/json";
-    payload = JSON.stringify(body);
-  }
+export function getRole() {
+  return localStorage.getItem("role");
+}
 
-  const response = await fetch(`/api${path}`, { method, headers, body: payload });
-  const data = response.status === 204 ? null : await response.json();
-  if (!response.ok) throw new Error(data?.detail || `Request failed (${response.status})`);
-  return data;
+export function clearUser() {
+  localStorage.removeItem("userId");
+  localStorage.removeItem("role");
 }
 
 export const api = {
-  get: (path) => request("GET", path),
-  post: (path, body) => request("POST", path, body),
-  put: (path, body) => request("PUT", path, body),
-  delete: (path) => request("DELETE", path),
+  async get(path) {
+    const url = `/api${path}`;
+    const headers = {};
+    
+    const userId = getUserId();
+    if (userId !== null) {
+      headers["X-User-Id"] = userId;
+    }
+    
+    const response = await fetch(url, { method: "GET", headers });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(errorData.detail || response.statusText);
+    }
+    
+    if (response.status === 204) {
+      return null;
+    }
+    
+    return response.json();
+  },
+
+  async post(path, body) {
+    const url = `/api${path}`;
+    const headers = {};
+    
+    const userId = getUserId();
+    if (userId !== null) {
+      headers["X-User-Id"] = userId;
+    }
+    
+    // Set Content-Type only for JSON bodies
+    if (!(body instanceof FormData)) {
+      headers["Content-Type"] = "application/json";
+    }
+    
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: body instanceof FormData ? body : JSON.stringify(body)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(errorData.detail || response.statusText);
+    }
+    
+    if (response.status === 204) {
+      return null;
+    }
+    
+    return response.json();
+  },
+
+  async delete(path) {
+    const url = `/api${path}`;
+    const headers = {};
+    
+    const userId = getUserId();
+    if (userId !== null) {
+      headers["X-User-Id"] = userId;
+    }
+    
+    const response = await fetch(url, { method: "DELETE", headers });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(errorData.detail || response.statusText);
+    }
+    
+    if (response.status === 204) {
+      return null;
+    }
+    
+    return response.json();
+  }
 };

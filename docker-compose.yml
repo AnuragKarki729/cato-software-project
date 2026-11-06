@@ -1,14 +1,13 @@
-name: cato-sad
+name: cato-simple
 
 services:
   db:
     image: mysql:8.4
     env_file: .env
-    # No host port: only the server container talks to MySQL.
     volumes:
       - db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
       interval: 5s
       retries: 20
 
@@ -18,23 +17,22 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./server/app:/code/app      # live reload while coding
-      - ./server/tests:/code/tests
-      - uploads:/data/uploads       # uploaded videos and resumes
+      - ./server/app:/app/app   # live reload while coding
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       db:
         condition: service_healthy
 
   client:
     build: ./client
-    env_file: .env
     ports:
       - "5173:5173"
+    environment:
+      - VITE_API_TARGET=http://server:8000
     volumes:
-      - ./client/src:/app/src       # live reload while coding
+      - ./client/src:/app/src   # live reload while coding
     depends_on:
       - server
 
 volumes:
   db-data:
-  uploads:
