@@ -1,101 +1,46 @@
-// client/src/api.js
-export function setUserId(id) {
-  localStorage.setItem("userId", String(id));
+// Responsibility 7 — Aye Myo Myat (6837919)
+// Keep the shared helpers so existing upload and feature pages keep working.
+const TOKEN_KEY = 'catoToken';
+export const getToken = () => sessionStorage.getItem(TOKEN_KEY);
+export function setToken(token) {
+  if (token) sessionStorage.setItem(TOKEN_KEY, token);
+  else sessionStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem('devUserId'); // retire the old impersonation header
 }
 
-export function getUserId() {
-  return localStorage.getItem("userId");
-}
-
-export function setRole(role) {
-  localStorage.setItem("role", role);
-}
-
-export function getRole() {
-  return localStorage.getItem("role");
-}
-
-export function clearUser() {
-  localStorage.removeItem("userId");
-  localStorage.removeItem("role");
-}
-
-export const api = {
-  async get(path) {
-    const url = `/api${path}`;
-    const headers = {};
-    
-    const userId = getUserId();
-    if (userId !== null) {
-      headers["X-User-Id"] = userId;
-    }
-    
-    const response = await fetch(url, { method: "GET", headers });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(errorData.detail || response.statusText);
-    }
-    
-    if (response.status === 204) {
-      return null;
-    }
-    
-    return response.json();
-  },
-
-  async post(path, body) {
-    const url = `/api${path}`;
-    const headers = {};
-    
-    const userId = getUserId();
-    if (userId !== null) {
-      headers["X-User-Id"] = userId;
-    }
-    
-    // Set Content-Type only for JSON bodies
-    if (!(body instanceof FormData)) {
-      headers["Content-Type"] = "application/json";
-    }
-    
-    const response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: body instanceof FormData ? body : JSON.stringify(body)
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(errorData.detail || response.statusText);
-    }
-    
-    if (response.status === 204) {
-      return null;
-    }
-    
-    return response.json();
-  },
-
-  async delete(path) {
-    const url = `/api${path}`;
-    const headers = {};
-    
-    const userId = getUserId();
-    if (userId !== null) {
-      headers["X-User-Id"] = userId;
-    }
-    
-    const response = await fetch(url, { method: "DELETE", headers });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(errorData.detail || response.statusText);
-    }
-    
-    if (response.status === 204) {
-      return null;
-    }
-    
-    return response.json();
+async function request(method, path, body) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let payload;
+  if (body instanceof FormData) payload = body;
+  else if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    payload = JSON.stringify(body);
   }
+  const response = await fetch(`/api${path}`, { method, headers, body: payload });
+  let data = null;
+  if (response.status !== 204) {
+    try { data = await response.json(); }
+    catch { throw new Error('The server returned an unexpected response. Please try again.'); }
+  }
+  if (!response.ok) {
+    if (response.status === 401 && token && token === getToken()) {
+      setToken(null);
+      window.dispatchEvent(new Event('cato:session-expired'));
+    }
+    const detail = Array.isArray(data?.detail)
+      ? data.detail.map(item => item.msg.replace(/^Value error, /, '')).join('. ')
+      : data?.detail;
+    const error = new Error(detail || `Request failed (${response.status})`);
+    error.status = response.status;
+    throw error;
+  }
+  return data;
+}
+export const api = {
+  get: path => request('GET', path),
+  post: (path, body) => request('POST', path, body),
+  put: (path, body) => request('PUT', path, body),
+  delete: path => request('DELETE', path),
 };
