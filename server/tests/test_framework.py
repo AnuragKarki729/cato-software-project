@@ -5,12 +5,13 @@ def test_health(client):
     assert client.get("/api/health").json() == {"status": "ok"}
 
 
-def test_dummy_users_are_seeded(client):
-    roles = {u["role"] for u in client.get("/api/dev/users").json()}
-    assert roles == {"applicant", "recruiter"}
+def test_dummy_users_are_seeded(client, users):
+    assert users["recruiter"]["role"] == "recruiter"
+    assert users["applicant"]["role"] == "applicant"
+    assert client.get("/api/dev/users").status_code == 404
 
 
-def test_dev_login_and_roles(client, users):
+def test_login_and_roles(client, users):
     assert client.get("/api/auth/me").status_code == 401
     assert client.get("/api/auth/me", headers=as_user(users["applicant"])).json()["role"] == "applicant"
     # An applicant cannot use recruiter-only endpoints.

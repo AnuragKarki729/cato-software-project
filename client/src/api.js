@@ -1,38 +1,44 @@
-// All calls to the server go through these helpers.
-// The temporary development login sends the chosen user's id in "X-User-Id".
-// Responsibility 7 will replace this with a real login token.
-
-export function getDevUserId() {
-  return localStorage.getItem("devUserId");
-}
-
-export function setDevUserId(id) {
-  if (id) localStorage.setItem("devUserId", id);
-  else localStorage.removeItem("devUserId");
+// Responsibility 7 — Aye Myo Myat (6837919)
+// Keep the shared helpers so existing upload and feature pages keep working.
+const TOKEN_KEY = 'catoToken';
+export const getToken = () => sessionStorage.getItem(TOKEN_KEY);
+export function setToken(token) {
+  if (token) sessionStorage.setItem(TOKEN_KEY, token);
+  else sessionStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem('devUserId'); // retire the old impersonation header
 }
 
 async function request(method, path, body) {
   const headers = {};
-  const userId = getDevUserId();
-  if (userId) headers["X-User-Id"] = userId;
-
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
   let payload;
-  if (body instanceof FormData) {
-    payload = body; // file uploads
-  } else if (body !== undefined) {
-    headers["Content-Type"] = "application/json";
+  if (body instanceof FormData) payload = body;
+  else if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
     payload = JSON.stringify(body);
   }
-
   const response = await fetch(`/api${path}`, { method, headers, body: payload });
-  const data = response.status === 204 ? null : await response.json();
-  if (!response.ok) throw new Error(data?.detail || `Request failed (${response.status})`);
+  let data = null;
+  if (response.status !== 204) {
+    try { data = await response.json(); }
+    catch { throw new Error('The server returned an unexpected response. Please try again.'); }
+  }
+  if (!response.ok) {
+    if (response.status === 401 && token && token === getToken()) {
+      setToken(null);
+      window.dispatchEvent(new Event('cato:session-expired'));
+    }
+    const detail = Array.isArray(data?.detail)
+      ? data.detail.map(item => item.msg.replace(/^Value error, /, '')).join('. ')
+      : data?.detail;
+    throw new Error(detail || `Request failed (${response.status})`);
+  }
   return data;
 }
-
 export const api = {
-  get: (path) => request("GET", path),
-  post: (path, body) => request("POST", path, body),
-  put: (path, body) => request("PUT", path, body),
-  delete: (path) => request("DELETE", path),
+  get: path => request('GET', path),
+  post: (path, body) => request('POST', path, body),
+  put: (path, body) => request('PUT', path, body),
+  delete: path => request('DELETE', path),
 };

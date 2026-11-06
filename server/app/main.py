@@ -7,7 +7,7 @@ from sqlmodel import Session
 
 from app.config import SEED_DUMMY_DATA, STORAGE_DIR
 from app.database import create_db_and_tables, engine
-from app.routers import auth, dev, feed, filters, invitations, matching, options, profiles, saved, videos
+from app.routers import auth, feed, filters, invitations, matching, options, profiles, saved, videos
 from app.seed import seed_if_empty
 
 
@@ -46,7 +46,6 @@ api.include_router(matching.router)
 api.include_router(invitations.router)
 api.include_router(saved.router)
 api.include_router(options.router)
-api.include_router(dev.router)
 
 app.include_router(api)
 

@@ -1,34 +1,41 @@
 import os
 import tempfile
-
-# Use a throwaway database and storage folder for every test run.
 _tmp = tempfile.mkdtemp()
-os.environ["DATABASE_URL"] = f"sqlite:///{_tmp}/test.db"
-os.environ["STORAGE_DIR"] = f"{_tmp}/uploads"
-os.environ["SEED_DUMMY_DATA"] = "true"
+os.environ['DATABASE_URL'] = f'sqlite:///{_tmp}/test.db'
+os.environ['STORAGE_DIR'] = f'{_tmp}/uploads'
+os.environ['SEED_DUMMY_DATA'] = 'true'
+os.environ['CLOUDINARY_URL'] = ''
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
-
-from app.main import app  # noqa: E402
-
+import pytest
+from fastapi.testclient import TestClient
+from sqlmodel import Session, SQLModel, select
+from app.database import engine
+from app.main import app
+from app.models import User
+from app.services.auth_service import hash_password
 
 @pytest.fixture
 def client():
+    SQLModel.metadata.drop_all(engine)
     with TestClient(app) as c:
         yield c
 
-
 @pytest.fixture
 def users(client):
-    """Seeded dummy users, split by role."""
-    all_users = client.get("/api/dev/users").json()
-    return {
-        "recruiter": next(u for u in all_users if u["role"] == "recruiter"),
-        "applicant": next(u for u in all_users if u["role"] == "applicant"),
-    }
+    with Session(engine) as session:
+        seeded = session.exec(select(User).order_by(User.id)).all()
+        encoded = hash_password('Test-password-123')
+        for user in seeded:
+            user.password_hash = encoded
+            session.add(user)
+        session.commit()
+        accounts = [dict(id=u.id, email=u.email, role=u.role, name=u.name) for u in seeded]
+    for user in accounts:
+        user['token'] = client.post('/api/auth/login', json={
+            'email': user['email'], 'password': 'Test-password-123'}).json()['access_token']
+    recruiters = [u for u in accounts if u['role'] == 'recruiter']
+    return {'recruiter': recruiters[0], 'other_recruiter': recruiters[1],
+            'applicant': next(u for u in accounts if u['role'] == 'applicant')}
 
-
-def as_user(user: dict) -> dict:
-    """Headers for the temporary development login."""
-    return {"X-User-Id": str(user["id"])}
+def as_user(user):
+    return {'Authorization': f"Bearer {user['token']}"}
