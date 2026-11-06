@@ -1,26 +1,30 @@
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { setUserId, setRole } from '../../api';
-
-const USERS = {
-  applicant: [
-    { id: 3, name: 'Anurag Karki' },
-    { id: 4, name: 'Nusrat Begam' },
-  ],
-  recruiter: [
-    { id: 1, name: 'Aye Myo Myat' },
-    { id: 2, name: 'Siwakorn P.' },
-  ],
-};
+// Responsibility 7 — Aye Myo Myat (6837919)
+import { useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { homeFor, useAuth } from '../../context/AuthContext.jsx';
 
 const LogIn = () => {
   const [searchParams] = useSearchParams();
   const role = searchParams.get('role') === 'recruiter' ? 'recruiter' : 'applicant';
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const { login, sessionError } = useAuth();
   const navigate = useNavigate();
 
-  const handleLoginAs = (user) => {
-    setUserId(user.id);
-    setRole(role);
-    navigate(role === 'applicant' ? '/feed' : '/find');
+  const submit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const user = await login(email, password);
+      navigate(homeFor(user), { replace: true });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -29,18 +33,21 @@ const LogIn = () => {
       <p className="muted">Aye Myo Myat, 6837919</p>
       <p className="muted">Responsibility 7 (Sign up, log in and roles)</p>
 
-      <div className="stack">
-        <h2 className="center">Login as {role}:</h2>
-        {USERS[role].map((user) => (
-          <button
-            key={user.id}
-            onClick={() => handleLoginAs(user)}
-            className="btn"
-          >
-            Login as {user.name}
-          </button>
-        ))}
-      </div>
+      <form className="card stack" onSubmit={submit}>
+        <label className="field">
+          Email address
+          <input className="input" type="email" autoComplete="email" required maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} />
+        </label>
+        <label className="field">
+          Password
+          <input className="input" type="password" autoComplete="current-password" required maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} />
+        </label>
+
+        {(error || sessionError) && <p className="error" role="alert">{error || sessionError}</p>}
+        <button className="btn" disabled={busy}>{busy ? 'Logging in…' : 'Log in'}</button>
+        <p className="muted center">New to Cato? <Link to={`/signup?role=${role}`}>Create an account</Link></p>
+        <p className="muted center">Demo accounts: anurag@cato.test, nusrat@cato.test, aye@cato.test, siwakorn@cato.test (password1)</p>
+      </form>
     </div>
   );
 };

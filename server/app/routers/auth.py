@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.database import get_session
-from app.models import ApplicantProfile, AuthSession, RegistrationConsent, User, Video
+from app.models import AuthSession, RegistrationConsent, User, Video
 from app.schemas.user import LogInIn, SignUpIn, TokenOut, UserOut
 from app.services.auth_service import (DUMMY_HASH, get_current_session, get_current_user,
                                       hash_password, issue_session, verify_password)
@@ -15,9 +15,9 @@ router = APIRouter(prefix='/auth', tags=['auth'])
 def public_user(user, session):
     result = UserOut.model_validate(user)
     if user.role == 'applicant':
-        profile = session.exec(select(ApplicantProfile).where(ApplicantProfile.user_id == user.id)).first()
+        # Applicant profile (Responsibility 2) is not built yet, so only the pitch decides the step.
         pitch = session.exec(select(Video).where(Video.applicant_id == user.id, Video.kind == 'pitch')).first()
-        result.onboarding_step = 'profile' if not profile or not profile.resume_location else 'video' if not pitch else 'complete'
+        result.onboarding_step = 'video' if not pitch else 'complete'
     return result
 
 

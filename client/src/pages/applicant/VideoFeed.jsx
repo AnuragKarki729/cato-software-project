@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, getRole } from '../../api';
+import { api } from '../../api';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 const VideoFeed = () => {
   const [items, setItems] = useState([]);
@@ -71,7 +72,8 @@ const VideoFeed = () => {
     };
   }, [items, hasMore, loadMore]);
 
-  const backTo = getRole() === 'recruiter' ? '/find' : '/profile';
+  const { user } = useAuth();
+  const backTo = user?.role === 'recruiter' ? '/find' : '/profile';
 
   return (
     <div className="container">

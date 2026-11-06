@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { api, getUserId } from '../../api';
+import { api } from '../../api';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 const MyProfile = () => {
+  const { user, logout } = useAuth();
   const [pitch, setPitch] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -11,7 +13,7 @@ const MyProfile = () => {
     let cancelled = false;
     
     const fetchPitchVideo = async () => {
-      const userId = getUserId();
+      const userId = user?.id;
       
       if (!userId) {
         if (!cancelled) {
@@ -75,6 +77,7 @@ const MyProfile = () => {
         <div className="stack">
           <Link to="/invitations" className="btn">Invitations</Link>
           <Link to="/feed" className="btn">Video feed</Link>
+          <button type="button" className="btn btn-secondary" onClick={logout}>Log out</button>
         </div>
       </div>
     </div>

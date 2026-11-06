@@ -2,6 +2,10 @@ from sqlmodel import Session, select
 
 from app.database import engine
 from app.models import User
+from app.services.auth_service import hash_password
+
+# Local demo password for every seeded account.
+DEMO_PASSWORD = "password1"
 
 RECRUITERS = [
     # name, email, company
@@ -23,9 +27,11 @@ def seed_if_empty():
             return
 
         for name, email, company in RECRUITERS:
-            session.add(User(name=name, email=email, role="recruiter", company_name=company))
+            session.add(User(name=name, email=email, role="recruiter", company_name=company,
+                             password_hash=hash_password(DEMO_PASSWORD)))
 
         for name, email in APPLICANTS:
-            session.add(User(name=name, email=email, role="applicant"))
+            session.add(User(name=name, email=email, role="applicant",
+                             password_hash=hash_password(DEMO_PASSWORD)))
 
         session.commit()
