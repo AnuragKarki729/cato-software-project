@@ -13,11 +13,11 @@ client/
 ├── Dockerfile
 └── src/
     ├── main.jsx            starts React and the router
-    ├── App.jsx             page routes + who is logged in
+    ├── App.jsx             page routes + role guards
     ├── api.js              api.get / post / put / delete helpers
     ├── styles.css          loads Tailwind
     ├── components/
-    │   ├── NavBar.jsx      top bar, links per role, dev login dropdown
+    │   ├── NavBar.jsx      top bar, links per role, logout
     │   └── TodoPage.jsx    "Not built yet" placeholder
     └── pages/              one file per page
 ```
@@ -71,14 +71,28 @@ try {
 }
 ```
 
-## Logging in (for now)
+## Logging in (Responsibility 7)
 
-Until real login (Responsibility 7) is built, the navbar has an **"Acting as (dev)"** dropdown.
-Picking a dummy user saves their id in `localStorage`, and `api.js` sends it as the `X-User-Id`
-header. `App.jsx` loads the current user from `GET /api/auth/me` and passes it to the navbar and pages.
-The navbar shows applicant links or recruiter links depending on the role.
+`context/AuthContext.jsx` restores the current user on mount, handles login/logout, and exposes
+`useAuth()`. `api.js` sends the bearer token from tab-scoped session storage. A 401 clears an
+expired session. `App.jsx` protects applicant/recruiter routes using React Router and renders
+only the correct role's pages. The server independently enforces roles.
 
-When real login is finished, only `api.js` (and the Sign up / Log in pages) change.
+`SignUp.jsx` creates the account then logs in. Recruiters go to `/find`; applicants go to
+`/onboarding/profile`, `/onboarding/video`, or `/profile`, based on `/auth/me`'s `onboarding_step`.
+The old development account dropdown and `X-User-Id` flow have been retired.
+
+## Saved items (Responsibility 6)
+
+`Saved.jsx` loads real saved searches, bookmarks and fixed options. It can create/delete searches,
+apply a search to the current recruiter filter and open `/find`, and add/remove bookmarks.
+`BookmarkButton` is reusable on recruiter candidate cards and is wired into `ApplicantProfile`.
+The applicant selection control currently shows at most 100 applicants.
+
+Running a saved search persists its filters on the server and passes `state.savedSearch` and
+`state.savedSearchName` to `/find`. The filter-page owner should load `/filters/me` on mount,
+so it also restores applied filters after refresh. See `responsibilities-6-7.md` for boundaries
+with unfinished teammates' pages.
 
 ## React patterns we use
 

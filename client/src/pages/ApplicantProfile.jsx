@@ -1,3 +1,5 @@
+import { useParams } from "react-router-dom";
+import BookmarkButton from "../components/BookmarkButton.jsx";
 import TodoPage from "../components/TodoPage.jsx";
 
 // Endpoints: GET /api/profiles/:applicantId, GET /api/videos/applicant/:applicantId, POST /api/invitations
@@ -13,12 +15,16 @@ const LINKS = [
 ];
 
 export default function ApplicantProfile() {
+  const { applicantId } = useParams();
   return (
+    <div className="space-y-4">
+    <BookmarkButton applicantId={applicantId} />
     <TodoPage
       title="Candidate profile"
       owners={OWNERS}
       location="client/src/pages/ApplicantProfile.jsx"
       links={LINKS}
     />
+    </div>
   );
 }

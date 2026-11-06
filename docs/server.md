@@ -42,33 +42,25 @@ When the server starts (`lifespan` in `main.py`) it:
 1. Creates any missing tables (`create_db_and_tables()`).
 2. Adds the dummy data if the database is empty (`seed_if_empty()`): 2 recruiters and 6 applicants with profiles.
 
-## Logging in (for now)
+## Authentication (Responsibility 7)
 
-Real login is Responsibility 7. Until then the server uses a **temporary development login**:
-the client sends the chosen user's id in an `X-User-Id` header, and `services/auth_service.py` turns it
-into a `User`.
+Sign up with `POST /api/auth/signup`; log in with `POST /api/auth/login` to receive an
+`access_token` and public user information. Send `Authorization: Bearer TOKEN` for protected
+endpoints. `POST /api/auth/logout` revokes that session. Tokens expire after 24 hours.
 
-Add one of these to any endpoint to get the current user:
+Passwords use salted scrypt hashes. Random session tokens are stored only as SHA-256 digests
+in the additive `authsession` table. Existing `user` columns are unchanged. The public
+`/api/dev/users` account-switching route is no longer registered, and `X-User-Id` is ignored.
 
-| Dependency | Allows | Otherwise |
-|---|---|---|
-| `Depends(get_current_user)` | any logged-in user | 401 Not logged in |
-| `Depends(get_current_applicant)` | applicants only | 403 Only applicants can do this |
-| `Depends(get_current_recruiter)` | recruiters only | 403 Only recruiters can do this |
-
-```python
-@router.get("/me")
-def get_my_profile(user: User = Depends(get_current_applicant), session: Session = Depends(get_session)):
-    ...
-```
-
-When real login is finished, only `get_current_user` changes. Every router keeps working.
+Keep using `get_current_user`, `get_current_applicant`, and `get_current_recruiter` dependencies.
+Missing/invalid/expired tokens return 401; the wrong role returns 403. `/auth/me` also returns
+`onboarding_step` based on the applicant's existing profile, resume and pitch.
 
 ## Services
 
 | File | What it gives you | Status |
 |---|---|---|
-| `auth_service.py` | `get_current_user`, `get_current_applicant`, `get_current_recruiter` | ✅ temporary dev login |
+| `auth_service.py` | `get_current_user`, `get_current_applicant`, `get_current_recruiter` | ✅ bearer login and role checks |
 | `options_service.py` | Fixed lists: fields of study, skills, years | ✅ |
 | `storage_service.py` | `save`, `get_url`, `delete` for files → [uploads.md](uploads.md) | ✅ |
 | `matching_service.py` | `passes_hard_filters(profile, filter)`, `match_score(profile, filter)`, `split_skills(text)` | ✅ |
@@ -83,9 +75,9 @@ All paths start with `/api`. Try them at http://localhost:8000/docs.
 |---|---|---|---|---|
 | GET | `/health` | anyone | – | ✅ |
 | GET | `/options` | anyone | shared | ✅ |
-| GET | `/dev/users` | anyone | dev only | ✅ |
-| POST | `/auth/signup` | anyone | 7 | 501 |
-| POST | `/auth/login` | anyone | 7 | 501 |
+| POST | `/auth/logout` | logged in | 7 | ✅ |
+| POST | `/auth/signup` | anyone | 7 | ✅ |
+| POST | `/auth/login` | anyone | 7 | ✅ |
 | GET | `/auth/me` | logged in | 7 | ✅ |
 | GET | `/profiles/me` | applicant | 2 | 501 |
 | PUT | `/profiles/me` | applicant | 2 | 501 |
@@ -102,12 +94,12 @@ All paths start with `/api`. Try them at http://localhost:8000/docs.
 | POST | `/invitations` | recruiter | 8 | 501 |
 | GET | `/invitations/received` | applicant | 8 | 501 |
 | GET | `/invitations/sent` | recruiter | 8 | 501 |
-| GET | `/saved/searches` | recruiter | 6 (optional) | 501 |
-| POST | `/saved/searches` | recruiter | 6 (optional) | 501 |
-| DELETE | `/saved/searches/{search_id}` | recruiter | 6 (optional) | 501 |
-| GET | `/saved/bookmarks` | recruiter | 6 (optional) | 501 |
-| POST | `/saved/bookmarks` | recruiter | 6 (optional) | 501 |
-| DELETE | `/saved/bookmarks/{bookmark_id}` | recruiter | 6 (optional) | 501 |
+| GET | `/saved/searches` | recruiter | 6 (optional) | ✅ |
+| POST | `/saved/searches` | recruiter | 6 (optional) | ✅ |
+| DELETE | `/saved/searches/{search_id}` | recruiter | 6 (optional) | ✅ |
+| GET | `/saved/bookmarks` | recruiter | 6 (optional) | ✅ |
+| POST | `/saved/bookmarks` | recruiter | 6 (optional) | ✅ |
+| DELETE | `/saved/bookmarks/{bookmark_id}` | recruiter | 6 (optional) | ✅ |
 | GET | `/files/{key}` | anyone | uploads | ✅ |
 
 Each unbuilt endpoint has a `# TODO` comment describing what it should do.
@@ -161,3 +153,15 @@ cd server && uv sync && uv run pytest            # without Docker
 
 Add tests for your endpoints in a new `tests/test_<feature>.py`. Use the `client` and `users`
 fixtures from `conftest.py`, and `as_user(user)` for the login header.
+
+### Saved-search additions
+
+- `POST /api/saved/searches/{id}/run`: checks ownership and copies saved parameters into
+  the recruiter's current `recruiterfilter`, returning `FilterOut`.
+- `GET /api/saved/candidates?limit=100`: recruiter-only applicant names/IDs for bookmark selection.
+- Bookmark responses include applicant `name`, `field_of_study`, and `year`.
+- Existing bookmarks are returned on repeated POSTs. Recruiter row locking serializes these
+  attempts on MySQL. Delete/run operations on another recruiter's saved items return 404.
+
+`tests/conftest.py` now authenticates test accounts with real bearer sessions. Use `as_user(user)`
+as before. All tests use an isolated database reset per test, with Cloudinary disabled.

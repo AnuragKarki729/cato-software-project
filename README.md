@@ -54,14 +54,22 @@ docker compose -f docker-compose.prod.yml up -d
 The app is then at http://localhost:8080. To get a public link: `cloudflared tunnel --url http://localhost:8080`.
 To update later, run `git pull`, then the `pull` and `up -d` commands again.
 
-## Logging in while real login is not built yet
+## Logging in
 
-The navbar has an **"Acting as (dev)"** dropdown. Pick any dummy user (recruiters and applicants are
-seeded on first start) and the app behaves as if you are logged in as them. Behind the scenes the
-client sends `X-User-Id` with every request.
+Use **Sign up** to create an applicant or recruiter account, then log in with email and password.
+Recruiters must supply a company name. Applicants are directed to the appropriate onboarding
+step, and recruiters to Find candidates. Protected API endpoints use a bearer token; the old
+`X-User-Id` account-switching header no longer works.
 
-When Responsibility 7 finishes real login, only `server/app/services/auth_service.py` and `client/src/api.js`
-change. Your routers keep using `get_current_user` / `require_role` as they are.
+Tokens last 24 hours, are stored in the browser tab's session storage, and are revoked by **Log out**.
+Existing seeded users have no default password. To use one without losing its profile/videos:
+
+```bash
+docker compose exec server uv run python -m app.set_password aye@cato.test
+```
+
+Choose the password interactively. No database wipe or Cloudinary configuration change is needed.
+See [Responsibilities 6 and 7](docs/responsibilities-6-7.md) for implementation details and a demo checklist.
 
 ## Folder structure
 
@@ -107,9 +115,9 @@ Search the code for `Responsibility N` to find your files. Unbuilt endpoints ret
 | **Group B – Recruiter search and matching** ||||
 | 4 | Recruiter filter page | `routers/filters.py` | `FindCandidates.jsx` |
 | 5 | Candidate matching and ranked results | `routers/matching.py`, `services/matching_service.py` ✅ | `RankedResults.jsx` |
-| 6 | Saved searches and bookmarks *(optional)* | `routers/saved.py` | `Saved.jsx` |
+| 6 | Saved searches and bookmarks *(optional)* | `routers/saved.py` ✅ | `Saved.jsx`, `components/BookmarkButton.jsx` ✅ |
 | **Group C – Accounts and invitations** ||||
-| 7 | Sign up, log in and roles | `routers/auth.py`, `services/auth_service.py` | `SignUp.jsx`, `LogIn.jsx` |
+| 7 | Sign up, log in and roles | `routers/auth.py`, `services/auth_service.py` ✅ | `SignUp.jsx`, `LogIn.jsx`, shared route guards ✅ |
 | 8 | Invitations | `routers/invitations.py`, `services/invitation_service.py` | `Invitations.jsx`, `SentInvitations.jsx`, Invite button on `ApplicantProfile.jsx` |
 
 ✅ = already written and tested, ready to use.
@@ -135,3 +143,6 @@ docker compose run --rm server uv run pytest
 ```
 
 Or without Docker, from the `server/` folder: `uv sync` then `uv run pytest`.
+
+For a local client install without Docker, use `npm ci --legacy-peer-deps` in `client/`,
+matching the existing Dockerfiles (the video-trimming dependency declares a React 19 peer).

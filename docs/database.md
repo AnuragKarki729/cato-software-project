@@ -52,7 +52,7 @@ Every other table points back to `user.id`.
 | id | int | primary key |
 | name | str | |
 | email | str | unique |
-| password_hash | str or null | null for dummy users until real login exists |
+| password_hash | str or null | null for seeded users until a demo password is assigned |
 | role | str | `"applicant"` or `"recruiter"` |
 | company_name | str or null | recruiters only |
 
@@ -155,3 +155,18 @@ There are no migrations. Tables are only created when they do not exist yet, so 
 
 Tell the group before changing a table that other responsibilities read (`user`, `applicantprofile`,
 `video`, `recruiterfilter`).
+
+### `authsession` — Responsibility 7 · `models/auth_session.py`
+
+New additive table, created at startup. No existing tables need to be dropped or recreated.
+
+| Field | Meaning |
+| --- | --- |
+| id | Primary key |
+| user_id | Indexed foreign key to `user.id` |
+| token_hash | Unique indexed SHA-256 digest of the random bearer token |
+| expires_at | Expiry as a UTC datetime |
+
+Logout deletes the current session. Expired tokens are rejected. Public user responses exclude
+password hashes. Seeded users still have null passwords until assigned one with the interactive
+`app.set_password` command; registrations receive a salted scrypt hash.

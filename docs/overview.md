@@ -68,8 +68,8 @@ Cato-SoftwareAppDev-Project/
 | **Applicant** | Fills in a profile (university, field of study, year, GPA, skills, internships), uploads a resume and videos, receives invitations |
 | **Recruiter** | Sets filter parameters, sees ranked applicants, views profiles and videos, sends invitations |
 
-Every user has exactly one role. Until real login is built, the navbar's **"Acting as (dev)"**
-dropdown lets you act as any dummy user (see [server.md](server.md#logging-in-for-now)).
+Every user has exactly one role. Register or log in with email/password. The server checks an
+expiring bearer token and role for protected endpoints; the old account-switching header is retired.
 
 ## User flow
 
@@ -111,18 +111,16 @@ There is no free-text search. Recruiters pick parameters from fixed options, and
 
 The formula is already written in `server/app/services/matching_service.py` and tested.
 
-## What is built and what is not
+## Current implementation status
 
-| Built (ready to use) | Not built yet |
-|---|---|
-| Docker setup (db, server, client) | All feature endpoints – they return **501 Not built yet (Responsibility N)** |
-| All 7 database tables + dummy data | All feature pages – they show a dashed **Not built yet** box |
-| Temporary dev login + role checks | Real sign up / log in |
-| Fixed options (`/api/options`) | |
-| File storage (save, get link, delete) | |
-| Matching formula + invitation message | |
-| Navbar, page routes, `api.js` helpers | |
-| Tests for all of the above | |
+Responsibilities 6 (saved searches/bookmarks) and 7 (signup/login/roles) are implemented on
+`aye-myo-myat/resp-6-7`; see [implementation and demo checklist](responsibilities-6-7.md).
+Video upload/retrieval, the matching formula, storage services, fixed options, database tables,
+Docker setup and their tests are reused from the existing project.
+
+Other teammates' feature pages/endpoints still contain placeholders on this branch's starting
+main commit. In particular, applying a saved search updates the real current filters but does
+not implement the filter form or matching-results page.
 
 ## Running it
 
