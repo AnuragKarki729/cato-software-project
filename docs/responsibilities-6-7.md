@@ -10,7 +10,7 @@ Owner: **Aye Myo Myat (6837919)**
 | Sessions and logout | `services/auth_service.py`, `models/auth_session.py`, AuthContext | Random bearer token, digest stored in DB, 24-hour expiry, server-side revocation |
 | Access by role | App route guards, existing server auth dependencies | Guests must log in; applicant/recruiter pages are separated; old ID-header impersonation removed |
 | Onboarding routing | `/auth/me`, `homeFor()` | Uses existing applicant profile, resume and pitch to choose next page |
-| Saved searches | `routers/saved.py`, `schemas/saved.py`, Saved page | Create/list/delete named fixed filters; run restores current filter in DB |
+| Saved searches | `routers/saved.py`, `schemas/saved.py`, Saved page + SaveSearchButton | Create/list/delete named fixed filters; run restores current filter in DB |
 | Bookmarks | Saved page, BookmarkButton, saved endpoints | Add/list/remove applicant bookmarks; duplicate POST returns existing bookmark; only owner can delete |
 | Existing demo accounts | `app/set_password.py` | Assign password interactively without deleting user/profile/video data; revoke existing sessions |
 
@@ -50,10 +50,11 @@ Tests use temporary SQLite only; the application Compose database remains MySQL.
 
 1. Open `/saved` while logged out: redirected to Log in.
 2. Register a recruiter with a company name: opens Find candidates.
-3. Open Saved. Create a named search with fixed field/year/GPA/skill choices.
-4. Refresh: the saved search remains. Run it: current DB filter is updated and Find candidates
+3. Once Responsibility 4 provides the filter form, set your filters on Find candidates and
+   use Save search to name them. The button can take the form’s `filters` prop or load its saved filter.
+4. Open Saved and refresh: the saved search remains. Run it: current DB filter is updated and Find candidates
    shows the applied-search confirmation.
-5. Choose an applicant and bookmark them; refresh and open their profile; remove the bookmark.
+5. Open an applicant profile and bookmark them. Open Saved, refresh, then remove the bookmark.
 6. Delete a saved search. Its card disappears and stays deleted after refresh.
 7. Log out. The old bearer token no longer works, including in direct API requests.
 8. Log in with a wrong password: show the error. Correct it: log in successfully.
@@ -76,3 +77,22 @@ The repository's existing deployment workflow runs only for main; this branch do
 - Browser verification used a throwaway SQLite database and local storage, not production data
   or Cloudinary. Docker/MySQL startup could not be exercised because Docker is unavailable in
   the coding environment. The existing Compose files were not changed.
+
+## Review revision (v2)
+
+- Removed the duplicate filter form and applicant-picker controls from Saved. The documented
+  page now contains the saved searches list and bookmarked applicants list.
+- Added a small reusable SaveSearchButton to the existing Find candidates placeholder, without
+  implementing or replacing Responsibility 4. Until that owner's filter form exists, saving
+  correctly reports that filters must be set first; it does not invent filter values.
+- Navbar is rendered after login, matching the application-flow document.
+- No global colour/font tokens, Docker configuration, Cloudinary settings, video implementation,
+  or existing shared profile/filter table definitions were changed.
+- Exact Figma fidelity remains UNVERIFIED. Figma denied both session creation and design-context
+  reads for file KmC0vqgo9VtcUbourgW2QE. Existing repository styles are retained pending access.
+- Preview images come from the actual current React/FastAPI build with fictional local demo data.
+  They show implementation state; they are not Figma renders or a finished design sign-off.
+- Validation after this revision: 37 server tests passed, production build passed, and browser
+  checks passed for saved-current-filter errors, named save, run/reload/delete, profile bookmarks,
+  logout revocation, applicant redirects, and 390px layout. The filter form was represented by
+  a temporary DB fixture in the browser check because the teammate's page is still a placeholder.

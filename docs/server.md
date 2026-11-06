@@ -158,7 +158,8 @@ fixtures from `conftest.py`, and `as_user(user)` for the login header.
 
 - `POST /api/saved/searches/{id}/run`: checks ownership and copies saved parameters into
   the recruiter's current `recruiterfilter`, returning `FilterOut`.
-- `GET /api/saved/candidates?limit=100`: recruiter-only applicant names/IDs for bookmark selection.
+- `GET /api/saved/current-filter`: reads only this recruiter’s persisted current filter for the
+  reusable SaveSearchButton; returns 404 if Responsibility 4 has not saved any filters yet.
 - Bookmark responses include applicant `name`, `field_of_study`, and `year`.
 - Existing bookmarks are returned on repeated POSTs. Recruiter row locking serializes these
   attempts on MySQL. Delete/run operations on another recruiter's saved items return 404.

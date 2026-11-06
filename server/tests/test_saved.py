@@ -17,6 +17,7 @@ def test_saved_search_round_trip_and_run(client, users):
     for _ in range(2):
         r = client.post(f"/api/saved/searches/{item['id']}/run", headers=headers)
         assert r.status_code == 200 and r.json()['min_gpa'] == 3
+        assert client.get('/api/saved/current-filter', headers=headers).json() == r.json()
     with Session(engine) as s:
         current = s.exec(select(RecruiterFilter).where(RecruiterFilter.recruiter_id == users['recruiter']['id'])).one()
         assert current.skills == 'Python,SQL' and current.min_year == 4
@@ -50,9 +51,7 @@ def test_bookmarks_validate_target_and_deduplicate(client, users):
     assert client.delete('/api/saved/bookmarks/999999', headers=headers).status_code == 404
 
 def test_recruiter_only_access(client, users):
-    for path in ['/api/saved/searches', '/api/saved/bookmarks', '/api/saved/candidates']:
+    for path in ['/api/saved/searches', '/api/saved/bookmarks', '/api/saved/current-filter']:
         assert client.get(path).status_code == 401
         assert client.get(path, headers=as_user(users['applicant'])).status_code == 403
-    candidates = client.get('/api/saved/candidates', headers=as_user(users['recruiter'])).json()
-    assert users['applicant']['id'] in [candidate['id'] for candidate in candidates]
-    assert users['recruiter']['id'] not in [candidate['id'] for candidate in candidates]
+    assert client.get('/api/saved/current-filter', headers=as_user(users['recruiter'])).status_code == 404

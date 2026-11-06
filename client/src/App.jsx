@@ -39,7 +39,7 @@ function AppRoutes() {
   if (loading) return <p className="p-8" role="status">Loading your session…</p>;
   return (
     <>
-      <NavBar user={user} />
+      {user && <NavBar user={user} />}
       <main className="mx-auto max-w-5xl px-4 py-6">
         <Routes>
           <Route path="/" element={<Landing />} />

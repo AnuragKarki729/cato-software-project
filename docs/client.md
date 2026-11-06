@@ -84,10 +84,11 @@ The old development account dropdown and `X-User-Id` flow have been retired.
 
 ## Saved items (Responsibility 6)
 
-`Saved.jsx` loads real saved searches, bookmarks and fixed options. It can create/delete searches,
-apply a search to the current recruiter filter and open `/find`, and add/remove bookmarks.
+`Saved.jsx` lists saved searches and bookmarked applicants, runs/deletes searches, and removes
+bookmarks. `SaveSearchButton` is added to Find candidates; it saves the current filter with a name.
+It accepts a `filters` prop so Responsibility 4 can pass its existing form state without duplicate inputs.
 `BookmarkButton` is reusable on recruiter candidate cards and is wired into `ApplicantProfile`.
-The applicant selection control currently shows at most 100 applicants.
+There is no duplicate filter form or applicant picker on Saved.
 
 Running a saved search persists its filters on the server and passes `state.savedSearch` and
 `state.savedSearchName` to `/find`. The filter-page owner should load `/filters/me` on mount,

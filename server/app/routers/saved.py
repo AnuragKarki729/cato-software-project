@@ -1,5 +1,5 @@
 # Responsibility 6 — Aye Myo Myat (6837919)
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.database import get_session
@@ -67,12 +67,12 @@ def run_saved_search(search_id: int, user: User = Depends(get_current_recruiter)
     return FilterOut(**{**current.model_dump(), 'skills': split_skills(current.skills)})
 
 
-@router.get('/candidates')
-def bookmark_candidates(limit: int = Query(default=100, ge=1, le=100),
-                        user: User = Depends(get_current_recruiter), session: Session = Depends(get_session)):
-    # A minimal selection list; detailed profiles belong to Responsibility 2.
-    return [{'id': applicant.id, 'name': applicant.name} for applicant in session.exec(
-        select(User).where(User.role == 'applicant').order_by(User.name, User.id).limit(limit)).all()]
+@router.get('/current-filter', response_model=FilterOut)
+def current_filter(user: User = Depends(get_current_recruiter), session: Session = Depends(get_session)):
+    current = session.exec(select(RecruiterFilter).where(RecruiterFilter.recruiter_id == user.id)).first()
+    if current is None:
+        raise HTTPException(status_code=404, detail='Set your search filters on Find candidates first')
+    return FilterOut(**{**current.model_dump(), 'skills': split_skills(current.skills)})
 
 
 @router.get('/bookmarks', response_model=list[BookmarkOut])
