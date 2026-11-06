@@ -55,3 +55,29 @@ def test_recruiter_only_access(client, users):
         assert client.get(path).status_code == 401
         assert client.get(path, headers=as_user(users['applicant'])).status_code == 403
     assert client.get('/api/saved/current-filter', headers=as_user(users['recruiter'])).status_code == 404
+
+
+def test_bookmark_details_reuse_existing_matching_and_video_services(client, users):
+    from datetime import datetime, timezone
+    from app.models import ApplicantProfile, Invitation, Video
+    from app.services.matching_service import match_score
+    recruiter, applicant = users['recruiter'], users['applicant']
+    headers = as_user(recruiter)
+    with Session(engine) as s:
+        current = RecruiterFilter(recruiter_id=recruiter['id'], skills='Python,SQL')
+        s.add(current)
+        s.add(Video(applicant_id=applicant['id'], kind='pitch', duration_seconds=12,
+                    file_location='test/pitch.mp4'))
+        s.add(Invitation(recruiter_id=recruiter['id'], applicant_id=applicant['id'],
+                         message='Demo invitation', sent_at=datetime.now(timezone.utc)))
+        s.commit()
+        profile = s.exec(select(ApplicantProfile).where(ApplicantProfile.user_id == applicant['id'])).one()
+        expected = match_score(profile, current)
+    bookmark = client.post('/api/saved/bookmarks', headers=headers, json={'applicant_id': applicant['id']}).json()
+    assert bookmark['match_score'] == expected
+    assert bookmark['matched_skills'] == ['Python', 'SQL']
+    assert bookmark['pitch_url'] == '/api/files/test/pitch.mp4'
+    assert bookmark['invited'] is True
+    assert 'email' not in bookmark
+    saved = client.post('/api/saved/searches', headers=headers, json=BASE).json()
+    assert saved['match_count'] == 1

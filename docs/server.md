@@ -166,3 +166,15 @@ fixtures from `conftest.py`, and `as_user(user)` for the login header.
 
 `tests/conftest.py` now authenticates test accounts with real bearer sessions. Use `as_user(user)`
 as before. All tests use an isolated database reset per test, with Cloudinary disabled.
+
+### Registration consent and Saved card metadata
+
+Applicant signup must include `sharing_consent: true` and an 8–128 character password containing
+at least one number. The checkbox is unchecked by default in the client. Consent scope, notice
+version and timestamp are persisted atomically in the additive registrationconsent table.
+Recruiter signup requires company_name and does not require applicant-sharing consent.
+
+Saved search responses include the computed hard-filter match_count. Bookmark responses also
+include profile fields, skills, matched_skills, required_skills_count, match_score,
+meets_requirements, pitch_url/duration and whether an invitation already exists. Data is read
+from the existing tables/services, without rewriting those owners' implementations.

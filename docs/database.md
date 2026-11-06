@@ -170,3 +170,10 @@ New additive table, created at startup. No existing tables need to be dropped or
 Logout deletes the current session. Expired tokens are rejected. Public user responses exclude
 password hashes. Seeded users still have null passwords until assigned one with the interactive
 `app.set_password` command; registrations receive a salted scrypt hash.
+
+### `registrationconsent` — Responsibility 7
+
+Additive signup audit record: id, user_id (unique FK), scope, notice_version, accepted_at.
+New applicant accounts must accept profile/video sharing to register. The acceptance is stored
+in the same transaction as the User. Existing shared User columns do not change. The profile
+owner must integrate withdrawal/deletion preferences separately; this table does not implement them.

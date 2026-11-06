@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.database import get_session
-from app.models import ApplicantProfile, AuthSession, User, Video
+from app.models import ApplicantProfile, AuthSession, RegistrationConsent, User, Video
 from app.schemas.user import LogInIn, SignUpIn, TokenOut, UserOut
 from app.services.auth_service import (DUMMY_HASH, get_current_session, get_current_user,
                                       hash_password, issue_session, verify_password)
@@ -29,6 +29,9 @@ def sign_up(body: SignUpIn, session: Session = Depends(get_session)):
                 company_name=body.company_name, password_hash=hash_password(body.password))
     session.add(user)
     try:
+        session.flush()
+        if body.role == 'applicant':
+            session.add(RegistrationConsent(user_id=user.id))
         session.commit()
     except IntegrityError:
         session.rollback()

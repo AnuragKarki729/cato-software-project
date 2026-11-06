@@ -3,25 +3,43 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.database import get_session
-from app.models import ApplicantProfile, Bookmark, RecruiterFilter, SavedSearch, User
+from app.models import ApplicantProfile, Bookmark, Invitation, RecruiterFilter, SavedSearch, User, Video
 from app.schemas.filter import FilterOut
 from app.schemas.saved import BookmarkIn, BookmarkOut, SavedSearchIn, SavedSearchOut
 from app.services.auth_service import get_current_recruiter
-from app.services.matching_service import split_skills
+from app.services.matching_service import match_score, passes_hard_filters, split_skills
+from app.services.storage_service import get_url
 
 router = APIRouter(prefix='/saved', tags=['saved'])
 
 
-def search_out(item):
-    return SavedSearchOut(**{**item.model_dump(), 'skills': split_skills(item.skills)})
+def search_out(item, profiles):
+    # Reuse Responsibility 5's hard-filter logic; do not invent a count.
+    return SavedSearchOut(**{**item.model_dump(), 'skills': split_skills(item.skills)},
+                          match_count=sum(passes_hard_filters(profile, item) for profile in profiles))
 
 
 def bookmark_out(item, session):
     applicant = session.get(User, item.applicant_id)
     profile = session.exec(select(ApplicantProfile).where(ApplicantProfile.user_id == item.applicant_id)).first()
+    current = session.exec(select(RecruiterFilter).where(RecruiterFilter.recruiter_id == item.recruiter_id)).first()
+    pitch = session.exec(select(Video).where(Video.applicant_id == item.applicant_id, Video.kind == 'pitch')).first()
+    invitation = session.exec(select(Invitation).where(Invitation.recruiter_id == item.recruiter_id,
+                                                       Invitation.applicant_id == item.applicant_id)).first()
+    skills = split_skills(profile.skills) if profile else []
+    required = split_skills(current.skills) if current else []
     return BookmarkOut(**item.model_dump(), name=applicant.name,
                        field_of_study=profile.field_of_study if profile else None,
-                       year=profile.year if profile else None)
+                       year=profile.year if profile else None,
+                       gpa=profile.gpa if profile else None,
+                       internships=profile.internships if profile else None,
+                       skills=skills, matched_skills=[skill for skill in required if skill in skills],
+                       required_skills_count=len(required),
+                       match_score=match_score(profile, current) if profile and current else None,
+                       meets_requirements=passes_hard_filters(profile, current) if profile and current else None,
+                       pitch_url=get_url(pitch.file_location) if pitch else None,
+                       pitch_duration=pitch.duration_seconds if pitch else None,
+                       invited=invitation is not None)
 
 
 def owned(model, item_id, user, session):
@@ -33,7 +51,8 @@ def owned(model, item_id, user, session):
 
 @router.get('/searches', response_model=list[SavedSearchOut])
 def list_saved_searches(user: User = Depends(get_current_recruiter), session: Session = Depends(get_session)):
-    return [search_out(item) for item in session.exec(select(SavedSearch).where(
+    profiles = session.exec(select(ApplicantProfile)).all()
+    return [search_out(item, profiles) for item in session.exec(select(SavedSearch).where(
         SavedSearch.recruiter_id == user.id).order_by(SavedSearch.id.desc())).all()]
 
 
@@ -43,7 +62,7 @@ def create_saved_search(body: SavedSearchIn, user: User = Depends(get_current_re
     session.add(item)
     session.commit()
     session.refresh(item)
-    return search_out(item)
+    return search_out(item, session.exec(select(ApplicantProfile)).all())
 
 
 @router.delete('/searches/{search_id}', status_code=204)

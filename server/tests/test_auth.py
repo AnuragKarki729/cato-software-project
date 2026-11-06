@@ -3,12 +3,12 @@ from datetime import timedelta
 import pytest
 from sqlmodel import Session, select
 from app.database import engine
-from app.models import ApplicantProfile, AuthSession, User, Video
+from app.models import ApplicantProfile, AuthSession, RegistrationConsent, User, Video
 from app.services.auth_service import token_digest, utcnow, verify_password
 from tests.conftest import as_user
 
 def registration(**changes):
-    return {'name': 'New Applicant', 'email': 'new@example.com', 'password': 'Strong-pass-123', 'role': 'applicant', **changes}
+    return {'name': 'New Applicant', 'email': 'new@example.com', 'password': 'Strong-pass-123', 'role': 'applicant', 'sharing_consent': True, **changes}
 
 def test_signup_login_me_and_logout(client):
     body = registration(email=' NEW@Example.com ')
@@ -21,6 +21,7 @@ def test_signup_login_me_and_logout(client):
         stored = s.get(User, user['id'])
         assert stored.password_hash != body['password']
         assert verify_password(body['password'], stored.password_hash)
+        assert s.exec(select(RegistrationConsent).where(RegistrationConsent.user_id == user['id'])).one().scope == 'share_profile_and_videos_with_recruiters'
     assert client.post('/api/auth/signup', json=body).status_code == 409
     response = client.post('/api/auth/login', json={'email': body['email'], 'password': body['password']})
     assert response.status_code == 200
@@ -33,7 +34,7 @@ def test_signup_login_me_and_logout(client):
     assert client.post('/api/auth/logout', headers=headers).status_code == 204
     assert client.get('/api/auth/me', headers=headers).status_code == 401
 
-@pytest.mark.parametrize('changes', [{'role': 'admin'}, {'role': 'recruiter'}, {'role': 'recruiter', 'company_name': '   '}, {'name': '   '}, {'email': 'bad-email'}, {'password': 'short'}, {'password': 'x' * 129}])
+@pytest.mark.parametrize('changes', [{'role': 'admin'}, {'role': 'recruiter'}, {'role': 'recruiter', 'company_name': '   '}, {'name': '   '}, {'email': 'bad-email'}, {'password': 'short'}, {'password': 'x' * 129}, {'password': 'onlyletters'}, {'sharing_consent': False}])
 def test_invalid_registration(client, changes):
     assert client.post('/api/auth/signup', json=registration(**changes)).status_code == 422
 

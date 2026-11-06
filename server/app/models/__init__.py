@@ -6,3 +6,4 @@ from app.models.invitation import Invitation
 from app.models.saved_search import SavedSearch
 from app.models.bookmark import Bookmark
 from app.models.auth_session import AuthSession
+from app.models.registration_consent import RegistrationConsent

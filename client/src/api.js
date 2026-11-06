@@ -32,7 +32,9 @@ async function request(method, path, body) {
     const detail = Array.isArray(data?.detail)
       ? data.detail.map(item => item.msg.replace(/^Value error, /, '')).join('. ')
       : data?.detail;
-    throw new Error(detail || `Request failed (${response.status})`);
+    const error = new Error(detail || `Request failed (${response.status})`);
+    error.status = response.status;
+    throw error;
   }
   return data;
 }

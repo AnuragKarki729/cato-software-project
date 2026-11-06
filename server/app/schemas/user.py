@@ -32,6 +32,7 @@ class SignUpIn(LogInIn):
     password: str = Field(min_length=8, max_length=128)
     role: Literal['applicant', 'recruiter']
     company_name: str | None = Field(default=None, max_length=150)
+    sharing_consent: bool = False
 
     @field_validator('name')
     @classmethod
@@ -41,12 +42,21 @@ class SignUpIn(LogInIn):
             raise ValueError('Name is required')
         return value
 
+    @field_validator('password')
+    @classmethod
+    def valid_signup_password(cls, value):
+        if not any(c.isdigit() for c in value):
+            raise ValueError('Password must include a number')
+        return value
+
     @model_validator(mode='after')
     def valid_company(self):
         self.company_name = (self.company_name or '').strip() or None
         if self.role == 'recruiter' and not self.company_name:
             raise ValueError('Company name is required for recruiters')
         if self.role == 'applicant':
+            if not self.sharing_consent:
+                raise ValueError('Please agree to share your profile and videos before creating an applicant account')
             self.company_name = None
         return self
 

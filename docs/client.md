@@ -146,3 +146,14 @@ never typed. There is no free-text search.
 1. Create `src/pages/MyPage.jsx`.
 2. Add a route in `App.jsx`: `<Route path="/my-page" element={<MyPage />} />`.
 3. If it needs a navbar link, add it to `APPLICANT_LINKS` or `RECRUITER_LINKS` in `NavBar.jsx`.
+
+### Screenshot-based account/Saved layouts
+
+AuthLayout + Brand + Icon are shared components for Responsibility 7. Signup uses role cards,
+a required applicant sharing checkbox and a conditionally required recruiter company field.
+App gives these auth routes a full viewport; other feature page containers remain unchanged.
+NavBar keeps role navigation available in a small-screen account menu.
+
+Saved uses full-width rows and candidate cards, with real metadata supplied by the saved router.
+Invite calls Responsibility 8 and displays an unavailable message on 501. Custom pitch previews
+use the stored video URL with actual play/pause behavior. See responsibilities-6-7.md for boundaries.

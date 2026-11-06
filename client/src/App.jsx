@@ -36,11 +36,13 @@ function GuestOnly({ children }) {
 
 function AppRoutes() {
   const { user, loading } = useAuth();
+  const { pathname } = useLocation();
+  const authPage = pathname === "/login" || pathname === "/signup";
   if (loading) return <p className="p-8" role="status">Loading your session…</p>;
   return (
     <>
       {user && <NavBar user={user} />}
-      <main className="mx-auto max-w-5xl px-4 py-6">
+      <main className={authPage ? "min-h-screen" : pathname === "/saved" ? "mx-auto max-w-[1168px] px-4 py-8 sm:px-10" : "mx-auto max-w-5xl px-4 py-6"}>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/signup" element={<GuestOnly><SignUp /></GuestOnly>} />

@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { homeFor, useAuth } from '../context/AuthContext.jsx';
+import AuthLayout, { AuthField } from '../components/AuthLayout.jsx';
+import Icon from '../components/Icon.jsx';
 
 export default function LogIn() {
   const [email, setEmail] = useState('');
@@ -16,14 +18,17 @@ export default function LogIn() {
     catch (err) { setError(err.message); }
     finally { setBusy(false); }
   }
-  return <section className="card mx-auto max-w-md space-y-5">
-    <div><p className="text-sm font-semibold text-brand-700">Cato · Better hires, brighter futures</p><h1 className="mt-2">Welcome back</h1><p className="mt-2 text-ink-soft">Log in to your workspace.</p></div>
-    <form onSubmit={submit} className="space-y-4">
-      <label className="block text-sm font-medium">Email<input type="email" autoComplete="email" className="mt-1 w-full rounded-lg border border-line px-3 py-2" required maxLength={254} value={email} onChange={event => setEmail(event.target.value)} /></label>
-      <label className="block text-sm font-medium">Password<input type="password" autoComplete="current-password" className="mt-1 w-full rounded-lg border border-line px-3 py-2" required maxLength={128} value={password} onChange={event => setPassword(event.target.value)} /></label>
-      <button className="btn-primary w-full disabled:opacity-50" disabled={busy}>{busy ? 'Logging in…' : 'Log in'}</button>
+  return <AuthLayout>
+    <h1 className="text-[24px] leading-8 lg:text-[26px]">Log in</h1>
+    <p className="mt-1 hidden text-xs text-ink-soft lg:block">New to Cato? <Link className="font-semibold text-brand-700" to="/signup">Create an account</Link></p>
+    <p className="mt-3 text-[13px] text-ink-soft lg:hidden">Log in to see your profile or your candidates.</p>
+    <form onSubmit={submit} className="mt-5 space-y-4">
+      <AuthField label="Email address" icon="mail" type="email" autoComplete="email" required maxLength={254} value={email} onChange={event => setEmail(event.target.value)} />
+      <AuthField label="Password" icon="lock" type="password" autoComplete="current-password" required maxLength={128} value={password} onChange={event => setPassword(event.target.value)} />
+      {(error || sessionError) && <p className="text-xs text-red-600" role="alert">{error || sessionError}</p>}
+      <button className="h-11 w-full rounded-md bg-ink text-sm text-white transition hover:bg-slate-800 disabled:opacity-50" disabled={busy}>{busy ? 'Logging in…' : 'Log in'}</button>
     </form>
-    {(error || sessionError) && <p className="text-sm text-red-600" role="alert">{error || sessionError}</p>}
-    <p className="text-sm text-ink-soft">New to Cato? <Link className="nav-link underline" to="/signup">Create an account</Link></p>
-  </section>;
+    <p className="mt-5 hidden items-center gap-2 rounded-lg bg-slate-100 p-3 text-xs text-ink-soft lg:flex"><Icon name="circleCheck" />Applicants land on My profile; recruiters land on Find candidates.</p>
+    <p className="mt-5 text-center text-xs text-ink-soft lg:hidden">New to Cato? <Link to="/signup">Create an account</Link></p>
+  </AuthLayout>;
 }

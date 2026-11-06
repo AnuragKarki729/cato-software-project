@@ -1,98 +1,131 @@
-# Responsibilities 6 and 7
+# Responsibilities 6 and 7 — Aye Myo Myat (6837919)
 
-Owner: **Aye Myo Myat (6837919)**
+## Scope and ownership
 
-## Implemented
+This branch implements **6: Saved searches and bookmarks** and **7: Signup, login and roles**.
+It extends the existing React/Tailwind, FastAPI, SQLModel and Docker project.
+Cloudinary, video uploading, profile editing, filter editing, the matching algorithm, invitations,
+and the video feed remain with their existing owners.
 
-| Feature | Code | Behavior |
-| --- | --- | --- |
-| Signup and login | `routers/auth.py`, `schemas/user.py`, SignUp/LogIn pages | Validated role, normalized email, duplicate checks, recruiter company required, salted password hashes |
-| Sessions and logout | `services/auth_service.py`, `models/auth_session.py`, AuthContext | Random bearer token, digest stored in DB, 24-hour expiry, server-side revocation |
-| Access by role | App route guards, existing server auth dependencies | Guests must log in; applicant/recruiter pages are separated; old ID-header impersonation removed |
-| Onboarding routing | `/auth/me`, `homeFor()` | Uses existing applicant profile, resume and pitch to choose next page |
-| Saved searches | `routers/saved.py`, `schemas/saved.py`, Saved page + SaveSearchButton | Create/list/delete named fixed filters; run restores current filter in DB |
-| Bookmarks | Saved page, BookmarkButton, saved endpoints | Add/list/remove applicant bookmarks; duplicate POST returns existing bookmark; only owner can delete |
-| Existing demo accounts | `app/set_password.py` | Assign password interactively without deleting user/profile/video data; revoke existing sessions |
+## Responsibility 6
 
-## Integration boundaries
+- Saved displays full-width saved-search rows, followed by bookmarked candidate cards.
+- Saved searches: create, list, delete, and run. Run checks ownership and restores the saved
+  parameters to the recruiter's current filter before opening Find candidates.
+- SaveSearchButton is a small addition to Find candidates. It accepts a `filters` prop for the
+  teammate's form, or loads `/saved/current-filter` when none is passed.
+- The filter form itself is still a teammate's placeholder on the starting main branch.
+  Without a current filter, saving reports that filters need to be set first. There is no
+  second filter form on Saved and no invented filter values.
+- Bookmarks: add via BookmarkButton on a candidate profile; list and remove via Saved.
+  Only the recruiter who owns a saved item can access/delete/run it. Repeated bookmark POSTs
+  return the existing bookmark; MySQL row locking serializes duplicate attempts.
+- Candidate cards read real profile/skill/pitch data. Scores and matches use the existing
+  matching_service functions unchanged. Video URLs use the existing storage service unchanged.
+- No score is shown if there is no current filter or completed profile. Candidates who fail
+  the current hard requirements remain bookmarked but are clearly labelled.
+- The player on a bookmarked card plays/pauses the applicant's actual pitch. Missing/broken
+  videos have an honest unavailable state. Nothing is uploaded or copied by this feature.
+- Invite calls the existing Responsibility 8 endpoint. While it returns 501, the page shows
+  “Invitations are not available yet” and does not pretend an invitation was sent.
+- Saved-search match counts are computed from real profiles. The design's saved dates are
+  omitted because the existing savedsearch model has no timestamp. No dates are fabricated.
 
-- Cloudinary, video upload/retrieval, matching formula, and shared profile tables are reused.
-- This branch does not complete responsibilities 2, 4, 5 or 8. Their pages/endpoints are still
-  placeholders on the starting main branch.
-- `/find` receives a saved-search confirmation and the applied parameters in router state;
-  the actual recruiter filter form still belongs to Responsibility 4. It should load the
-  persisted `/filters/me` values when implemented.
-- BookmarkButton is inserted above the existing applicant-profile placeholder. The profile
-  content remains Responsibility 2/1/8; use the same button after replacing that placeholder.
-- No existing table definitions are modified. The new authsession table is created on startup.
-  **Do not use `docker compose down -v` to install this branch.**
-- Seeded accounts do not have passwords by default. Register a new account, or run the password
-  command in README to use an existing seeded account for the demo.
-- Browser tokens use sessionStorage, so refresh keeps login in the same tab. Closing the tab
-  clears the browser copy; the server token expires independently after 24 hours. Log out
-  explicitly to revoke it immediately.
+## Responsibility 7
 
-## Run / test
+- Signup validates name, normalized email, password, role, recruiter company and applicant
+  sharing consent. Signup passwords need 8–128 characters including a number, matching the
+  supplied desktop design. Applicant consent starts unchecked and is required.
+- Passwords use salted scrypt hashes. Login returns a random 24-hour bearer token; only its
+  SHA-256 digest is stored. Logout revokes the current token on the server.
+- AuthContext restores login on refresh in the same tab. Tokens are in sessionStorage.
+  Closing a tab removes its browser copy; server expiry remains independent.
+- API helpers attach the token, preserve FormData uploads, and clear expired sessions on 401.
+- Client routes and server dependencies separately enforce applicant/recruiter access.
+  The old X-User-Id impersonation header and public dev-user listing are retired.
+- Recruiters go to Find candidates. Applicants go to profile/resume onboarding, pitch onboarding,
+  or My profile based on the existing profile, resume and pitch records.
+- Responsive account navigation shows the user's initials, name, role/company and logout.
+  Small screens use an account menu to keep all role links and logout accessible.
+- The notification icon links to the role's existing invitations page; it adds no notification system.
+- Seeded accounts have no default password. Assign one interactively with the command in README;
+  their existing profiles and uploaded media are retained.
+
+## Design references and boundaries
+
+Implemented from the user's supplied desktop/mobile screenshots:
+
+- `184203`: desktop signup, split dark panel + role cards + form.
+- `184150`: desktop login, split dark panel + form.
+- `184430`: mobile signup; `184423`: mobile login.
+- `184521`: desktop Saved, search rows and candidate cards.
+
+The existing brand palette is reused. Inter is bundled locally with its license, so the
+existing font token renders correctly without a network font request. Shared Icon, Brand and
+AuthLayout components avoid duplicating the layout. Auth forms and Saved get the required
+page width without changing other pages' content layouts.
+
+The auth sidebar pitch card is a static illustration, not a fabricated playable user video.
+Actual bookmarked pitch cards use the video owner's real stored media URLs.
+
+Intentional differences from the screenshots:
+
+- Sample names, dates, counts and scores are never hardcoded into product pages.
+- Saved dates are omitted when unavailable in the schema.
+- Signup records the applicant's sharing consent. The screenshot's claims about withdrawal,
+  deletion and Terms/PDPA pages are not shown as completed controls: that profile/privacy
+  workflow and the notice text must be supplied by its owner. No legal-compliance claim is made.
+- The current screenshot set has no mobile Saved frame; its layout is adapted to stack cleanly.
+
+No onboarding, profile, invitations, matching-results or feed screen has been rebuilt for this
+contribution. Only the necessary save/bookmark hooks and account navigation are integrated.
+
+## Database
+
+Existing user, profile, savedsearch, bookmark, recruiterfilter and video schemas are unchanged.
+Two additive tables are created automatically at startup:
+
+- authsession: user_id, token_hash, expires_at, plus primary key.
+- registrationconsent: user_id, consent scope, notice version and accepted timestamp, plus primary key.
+
+Consent is saved in the same transaction as applicant registration. The profile/privacy owner
+can use this record for its sharing preferences/withdrawal flow. This branch does not implement
+account deletion, consent withdrawal, data export or legal notice pages.
+
+**Keep your existing .env, Cloudinary values and Docker volumes. No database wipe is needed.**
+
+## Validation
+
+- **40 backend tests passed**, including existing video/storage/matching tests.
+- React production build passed. The pre-existing video-trimmer bundle still triggers Vite's
+  warning about a JavaScript chunk over 500 kB.
+- Chromium checks against the real local React and FastAPI apps passed: signup/consent,
+  applicant/recruiter routing, role guards, bad-password error, logout revocation, saved
+  filters/counts/scores, save/run/reload/delete, bookmark removal, pitch playback and pause,
+  and correct handling of the unfinished invitation endpoint.
+- Checked no horizontal overflow at 360, 768, 1024 and 1224 pixels.
+- Preview screenshots use fictional local accounts and a generated two-second test video.
+  The temporary DB supplies current filters because the teammate's filter form is not built.
+  No preview fixtures or fictional candidate records are inserted into the shipped app.
+- Docker/MySQL startup itself is unverified here because Docker is unavailable. Compose remains unchanged.
+
+## Run and demo
 
 ```bash
-cp .env.example .env                  # first setup only; preserve an existing .env
-# Keep your existing Cloudinary settings.
+# First setup only; do not overwrite an existing .env.
+cp .env.example .env
 docker compose up --build
+# http://localhost:5173
 docker compose run --rm server uv run pytest
 ```
 
-Web: http://localhost:5173. Existing Dockerfiles use `--legacy-peer-deps` for the video trimmer.
-Local client install: `npm ci --legacy-peer-deps`; build: `npm run build`.
-Server tests without Docker: `cd server`, `uv sync --frozen`, `uv run pytest`.
-Tests use temporary SQLite only; the application Compose database remains MySQL.
+1. Register an applicant (sharing consent required) and a recruiter (company required).
+2. Check each role's redirects and forbidden-page behavior.
+3. Once Responsibility 4 saves a current filter, use Save search to name it.
+4. Open Saved, run it, return and refresh. Delete a saved search.
+5. Bookmark an applicant from their profile. View/remove the bookmark in Saved.
+6. Play the stored pitch; inspect the actual skill matches and score.
+7. Log out and show that the old token is rejected.
 
-## Demo / proof-of-work checklist
-
-1. Open `/saved` while logged out: redirected to Log in.
-2. Register a recruiter with a company name: opens Find candidates.
-3. Once Responsibility 4 provides the filter form, set your filters on Find candidates and
-   use Save search to name them. The button can take the form’s `filters` prop or load its saved filter.
-4. Open Saved and refresh: the saved search remains. Run it: current DB filter is updated and Find candidates
-   shows the applied-search confirmation.
-5. Open an applicant profile and bookmark them. Open Saved, refresh, then remove the bookmark.
-6. Delete a saved search. Its card disappears and stays deleted after refresh.
-7. Log out. The old bearer token no longer works, including in direct API requests.
-8. Log in with a wrong password: show the error. Correct it: log in successfully.
-9. Register an applicant: opens onboarding. Opening `/saved` redirects to their own portal.
-10. Show the automated tests: other recruiters cannot read/delete/run your saved items,
-    applicant/guest requests are denied, invalid filters are rejected, and video tests still pass.
-
-For the progress report use branch `aye-myo-myat/resp-6-7`, its commits, and your recorded demo.
-The repository's existing deployment workflow runs only for main; this branch does not deploy.
-
-## Validation performed
-
-- `uv run pytest -q --tb=short`: **37 passed**, including existing video, matching and storage tests.
-- `npm run build`: successful production build. Vite reports the existing video-trimmer bundle
-  exceeds its 500 kB warning threshold.
-- Headless Chromium against the real local React client and FastAPI server: guest redirect,
-  recruiter signup, saved-search create/reload/run/delete, bookmark add/remove from a profile,
-  wrong-role redirect, logout token revocation, bad/good password login, applicant signup and
-  onboarding redirect, and no horizontal overflow at 390 px width all passed.
-- Browser verification used a throwaway SQLite database and local storage, not production data
-  or Cloudinary. Docker/MySQL startup could not be exercised because Docker is unavailable in
-  the coding environment. The existing Compose files were not changed.
-
-## Review revision (v2)
-
-- Removed the duplicate filter form and applicant-picker controls from Saved. The documented
-  page now contains the saved searches list and bookmarked applicants list.
-- Added a small reusable SaveSearchButton to the existing Find candidates placeholder, without
-  implementing or replacing Responsibility 4. Until that owner's filter form exists, saving
-  correctly reports that filters must be set first; it does not invent filter values.
-- Navbar is rendered after login, matching the application-flow document.
-- No global colour/font tokens, Docker configuration, Cloudinary settings, video implementation,
-  or existing shared profile/filter table definitions were changed.
-- Exact Figma fidelity remains UNVERIFIED. Figma denied both session creation and design-context
-  reads for file KmC0vqgo9VtcUbourgW2QE. Existing repository styles are retained pending access.
-- Preview images come from the actual current React/FastAPI build with fictional local demo data.
-  They show implementation state; they are not Figma renders or a finished design sign-off.
-- Validation after this revision: 37 server tests passed, production build passed, and browser
-  checks passed for saved-current-filter errors, named save, run/reload/delete, profile bookmarks,
-  logout revocation, applicant redirects, and 390px layout. The filter form was represented by
-  a temporary DB fixture in the browser check because the teammate's page is still a placeholder.
+Proof of work: branch `aye-myo-myat/resp-6-7` and its feature commits. GitHub publishing still
+requires a connection with write access; the downloadable bundle retains the local history.

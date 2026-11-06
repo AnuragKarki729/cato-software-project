@@ -37,6 +37,7 @@ class SavedSearchIn(FilterIn):
 class SavedSearchOut(SavedSearchIn):
     id: int
     recruiter_id: int
+    match_count: int = 0
 
 
 class BookmarkIn(BaseModel):
@@ -49,3 +50,13 @@ class BookmarkOut(BookmarkIn):
     name: str
     field_of_study: str | None = None
     year: int | None = None
+    gpa: float | None = None
+    internships: int | None = None
+    skills: list[str] = Field(default_factory=list)
+    matched_skills: list[str] = Field(default_factory=list)
+    required_skills_count: int = 0
+    match_score: float | None = None
+    meets_requirements: bool | None = None
+    pitch_url: str | None = None
+    pitch_duration: float | None = None
+    invited: bool = False
