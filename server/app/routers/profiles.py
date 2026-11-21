@@ -7,7 +7,7 @@ PUT    /api/profiles/me          save the full profile (every field required)
 PUT    /api/profiles/me/draft    "Save draft": save whatever is filled in so far
 POST   /api/profiles/me/resume   upload the resume (PDF only, up to 5 MB)
 DELETE /api/profiles/me/resume   remove the resume
-GET    /api/profiles/{id}        read-only profile, for recruiters (and the applicant themself)
+GET    /api/profiles/{id}        read-only profile (recruiters, the video feed, "Preview as recruiter")
 """
 import re
 
@@ -155,12 +155,14 @@ def delete_resume(user: User = Depends(get_current_applicant), session: Session 
 
 @router.get("/{applicant_id}", response_model=ProfileOut)
 def get_profile(applicant_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    """Read-only profile. Recruiters can view any applicant; applicants only themselves
-    ("Preview as recruiter"). The applicant's email is never included."""
-    if user.role != "recruiter" and user.id != applicant_id:
-        raise HTTPException(status_code=403, detail="Only recruiters can view other applicants' profiles")
+    """Read-only profile for any logged-in user: recruiters, applicants browsing the video feed
+    (the Figma feed card shows field, year, GPA and skills) and "Preview as recruiter".
+    The applicant's email and resume are only included for recruiters and the applicant themself."""
     applicant = session.get(User, applicant_id)
     profile = find_profile(session, applicant_id) if applicant and applicant.role == "applicant" else None
     if profile is None:
         raise HTTPException(status_code=404, detail="Applicant profile not found")
-    return profile_out(profile, applicant)
+    out = profile_out(profile, applicant)
+    if user.role != "recruiter" and user.id != applicant_id:
+        out.resume_url = out.resume_name = out.resume_size = out.resume_uploaded_at = None
+    return out

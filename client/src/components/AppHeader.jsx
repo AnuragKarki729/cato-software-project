@@ -49,7 +49,7 @@ export default function AppHeader() {
     <>
       <header className="ui-header">
         <div className="ui-header__left">
-          <Logo to={links[0]?.to || '/'} />
+          <Logo />
           <nav className="ui-header__links" aria-label="Main navigation">
             {links.map((link) => (
               <Link key={link.to} to={link.to} className={`ui-header__link${isActive(link) ? ' is-active' : ''}`}

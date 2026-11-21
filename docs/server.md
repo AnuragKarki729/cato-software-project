@@ -84,7 +84,7 @@ All paths start with `/api`. Try them at http://localhost:8000/docs.
 | PUT | `/profiles/me/draft` | applicant | 2 | ✅ |
 | POST | `/profiles/me/resume` | applicant | 2 | ✅ |
 | DELETE | `/profiles/me/resume` | applicant | 2 | ✅ |
-| GET | `/profiles/{applicant_id}` | recruiter (or the applicant themself) | 2 | ✅ |
+| GET | `/profiles/{applicant_id}` | logged in (resume only for recruiters and the owner) | 2 | ✅ |
 | POST | `/videos` | applicant | 1 | 501 |
 | GET | `/videos/applicant/{applicant_id}` | logged in | 1 | 501 |
 | GET | `/videos/{video_id}` | logged in | 1 | 501 |
@@ -94,6 +94,7 @@ All paths start with `/api`. Try them at http://localhost:8000/docs.
 | PUT | `/filters/me` | recruiter | 4 | 501 |
 | GET | `/matching/results?offset=0&limit=5` | recruiter | 5 | ✅ |
 | GET | `/matching/results/{applicant_id}` | recruiter | 5 | ✅ |
+| GET | `/matching/preview` | recruiter | 5 | ✅ |
 | POST | `/invitations` | recruiter | 8 | 501 |
 | GET | `/invitations/received` | applicant | 8 | 501 |
 | GET | `/invitations/sent` | recruiter | 8 | 501 |

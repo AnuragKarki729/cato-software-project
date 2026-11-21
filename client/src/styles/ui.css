@@ -118,6 +118,9 @@
 .ui-badge--success .ui-badge__dot { background: var(--ui-emerald-500); }
 .ui-badge--info { background: var(--ui-sky-50); border-color: rgba(2, 132, 199, 0.2); color: var(--ui-sky-700); }
 .ui-badge--warning { background: var(--ui-amber-50); border-color: rgba(217, 119, 6, 0.2); color: var(--ui-amber-700); }
+.ui-badge--danger { background: var(--ui-red-50); border-color: rgba(220, 38, 38, 0.2); color: var(--ui-red-700); }
+.ui-badge--danger .ui-badge__dot { background: var(--ui-red-600); }
+.ui-badge--warning .ui-badge__dot { background: #d97706; }
 .ui-badge--neutral { background: var(--ui-slate-100); border-color: rgba(100, 116, 139, 0.2); color: var(--ui-slate-600); }
 .ui-badge--accent { background: var(--ui-emerald-500); color: var(--ui-slate-900); }
 
@@ -172,6 +175,7 @@ select.ui-control.is-empty { color: var(--ui-slate-500); }
   background: var(--ui-emerald-50); color: var(--ui-emerald-700); font-weight: 500;
 }
 .ui-avatar--sm { width: 32px; height: 32px; font-size: 12px; line-height: 16px; }
+.ui-avatar--md { width: 40px; height: 40px; font-size: 14px; line-height: 20px; font-weight: 600; }
 .ui-avatar--lg { width: 64px; height: 64px; font-size: 20px; line-height: 28px; font-weight: 600; }
 .ui-avatar--xl { width: 96px; height: 96px; font-size: 30px; line-height: 36px; font-weight: 600; letter-spacing: -0.015em; }
 
@@ -326,3 +330,27 @@ select.ui-control.is-empty { color: var(--ui-slate-500); }
   .ui-toast { right: 16px; bottom: 88px; }
   .ui-viewer__body { padding: 16px; }
 }
+
+/* ---------- Input with a leading icon, checkbox ---------- */
+.ui-control-wrap--icon > svg { left: 12px; right: auto; color: var(--ui-slate-600); }
+.ui-control-wrap--icon .ui-control { padding-left: 36px; }
+.ui-control:disabled { background: var(--ui-slate-50); color: var(--ui-slate-500); }
+
+.ui-check { position: relative; display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+.ui-check input { position: absolute; opacity: 0; width: 16px; height: 16px; margin: 2px 0 0; }
+.ui-check__box { display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-top: 2px; flex-shrink: 0; border: 1px solid var(--ui-slate-300); border-radius: var(--ui-radius-sm); background: #fff; color: transparent; }
+.ui-check__box svg { width: 12px; height: 12px; }
+.ui-check input:checked + .ui-check__box { background: var(--ui-emerald-500); border-color: var(--ui-emerald-500); color: var(--ui-slate-900); }
+.ui-check input:focus-visible + .ui-check__box { outline: 2px solid var(--ui-emerald-500); outline-offset: 2px; }
+.ui-check__text { display: flex; flex-direction: column; gap: 2px; }
+.ui-check__label { font-weight: 500; }
+
+/* ---------- Invite dialog (Figma P9b) ---------- */
+.iv-dialog { width: 480px; gap: 16px; }
+.iv-dialog__head { display: flex; gap: 16px; align-items: flex-start; }
+.iv-dialog__head > div { display: flex; flex-direction: column; gap: 4px; }
+.iv-dialog__icon { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; background: var(--ui-emerald-50); color: var(--ui-emerald-600); }
+.iv-dialog__icon svg { width: 20px; height: 20px; }
+.iv-dialog__message { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid var(--ui-slate-200); border-radius: var(--ui-radius-lg); background: var(--ui-slate-50); }
+.iv-dialog .ui-dialog__actions { margin-top: 0; }
+.ui-icon-btn.is-on svg { fill: currentColor; }

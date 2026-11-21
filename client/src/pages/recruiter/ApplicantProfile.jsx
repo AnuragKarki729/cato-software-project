@@ -5,16 +5,18 @@
 // Invite (Responsibility 8, Siwakorn P.) and Bookmark (Responsibility 6, Aye Myo Myat)
 // plug into the "Interested?" card.
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { ArrowLeft, Bookmark, Briefcase, Calendar, CircleAlert, ExternalLink, FileText, GraduationCap, Lock, Send, SlidersHorizontal, Star } from 'lucide-react';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Bookmark, Briefcase, Check, Calendar, CircleAlert, ExternalLink, FileText, GraduationCap, Lock, Send, SlidersHorizontal, Star } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import AppHeader from '../../components/AppHeader.jsx';
+import useCandidateActions from '../../components/useCandidateActions.jsx';
 import ResumeViewer from '../../components/ui/ResumeViewer.jsx';
 import VideoPoster from '../../components/ui/VideoPoster.jsx';
 import { ScoreBreakdown } from '../../components/ui/MatchScore.jsx';
 import { Avatar, Badge, Button, Tag } from '../../components/ui/primitives.jsx';
 import { fileSize, firstName, gpaLabel, yearLabel } from '../../utils/format.js';
+import { carry } from '../../utils/filters.js';
 
 const notFound = (err) => { if (err.status === 404) return null; throw err; };
 
@@ -22,6 +24,9 @@ export default function ApplicantProfile({ preview = false }) {
   const { user } = useAuth();
   const params = useParams();
   const applicantId = preview ? user.id : Number(params.applicantId);
+  const [searchParams] = useSearchParams();
+  const suffix = carry(searchParams); // the search from Ranked results, if any
+  const actions = useCandidateActions();
   const [profile, setProfile] = useState(undefined);
   const [videos, setVideos] = useState([]);
   const [match, setMatch] = useState(null);
@@ -33,7 +38,7 @@ export default function ApplicantProfile({ preview = false }) {
     Promise.all([
       api.get(`/profiles/${applicantId}`).catch(notFound),
       api.get(`/videos/applicant/${applicantId}`),
-      preview ? null : api.get(`/matching/results/${applicantId}`).catch(notFound),
+      preview ? null : api.get(`/matching/results/${applicantId}${suffix}`).catch(notFound),
     ]).then(([found, list, result]) => {
       if (!active) return;
       setProfile(found);
@@ -41,11 +46,11 @@ export default function ApplicantProfile({ preview = false }) {
       setMatch(result);
     }).catch((err) => { if (active) { setError(err.message); setProfile(null); } });
     return () => { active = false; };
-  }, [applicantId, preview]);
+  }, [applicantId, preview, suffix]);
 
   const back = preview
     ? <Button variant="ghost" size="sm" icon={ArrowLeft} to="/profile" className="cp-back">Back to My profile</Button>
-    : <Button variant="ghost" size="sm" icon={ArrowLeft} to="/results" className="cp-back">Back to results</Button>;
+    : <Button variant="ghost" size="sm" icon={ArrowLeft} to={`/results${suffix}`} className="cp-back">Back to results</Button>;
 
   if (profile === undefined || profile === null) {
     return (
@@ -148,10 +153,17 @@ export default function ApplicantProfile({ preview = false }) {
               <section className="ui-card cp-interest" aria-labelledby="interest-title">
                 <h2 id="interest-title" className="ui-h5">Interested?</h2>
                 <p className="ui-text-soft">{firstName(profile.name)} gets a fixed invitation message from you and your company.</p>
-                <Button variant="primary" size="lg" icon={Send} block disabled
-                  title="Invitations are Responsibility 8 and not built yet">Invite {firstName(profile.name)}</Button>
-                <Button variant="secondary" size="lg" icon={Bookmark} block disabled
-                  title="Bookmarks are Responsibility 6 and not connected yet">Bookmark</Button>
+                {actions.isInvited(applicantId) ? (
+                  <Button variant="secondary" size="lg" icon={Check} block disabled>Invited</Button>
+                ) : (
+                  <Button variant="primary" size="lg" icon={Send} block onClick={() => actions.invite({ applicant_id: applicantId, name: profile.name })}>
+                    Invite {firstName(profile.name)}
+                  </Button>
+                )}
+                <Button variant="secondary" size="lg" icon={Bookmark} block aria-pressed={actions.isBookmarked(applicantId)}
+                  onClick={() => actions.toggleBookmark({ applicant_id: applicantId, name: profile.name })}>
+                  {actions.isBookmarked(applicantId) ? 'Bookmarked' : 'Bookmark'}
+                </Button>
               </section>
             )}
 
@@ -169,6 +181,7 @@ export default function ApplicantProfile({ preview = false }) {
         </div>
       </main>
       {viewing && <ResumeViewer url={profile.resume_url} name={profile.resume_name} onClose={() => setViewing(false)} />}
+      {actions.ui}
     </div>
   );
 }

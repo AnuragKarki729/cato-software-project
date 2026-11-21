@@ -144,9 +144,13 @@ def test_who_can_view_a_profile(client, users, nusrat, storage):
     viewed = client.get(f"/api/profiles/{applicant['id']}", headers=as_user(users["recruiter"]))
     assert viewed.status_code == 200
     assert viewed.json()["name"] == "Anurag Karki" and "email" not in viewed.json()
-    # Applicants can preview themselves but not other applicants.
+    # Applicants can preview themselves, and see other applicants' details in the video feed,
+    # but never another applicant's resume.
     assert client.get(f"/api/profiles/{applicant['id']}", headers=as_user(applicant)).status_code == 200
-    assert client.get(f"/api/profiles/{applicant['id']}", headers=as_user(nusrat)).status_code == 403
+    upload(client, nusrat)
+    seen = client.get(f"/api/profiles/{nusrat['id']}", headers=as_user(applicant)).json()
+    assert seen["name"] == "Nusrat Begam" and seen["resume_url"] is None and "email" not in seen
+    assert client.get(f"/api/profiles/{nusrat['id']}", headers=as_user(users["recruiter"])).json()["resume_url"]
     # Recruiters and missing profiles are not applicant profiles.
     assert client.get(f"/api/profiles/{users['recruiter']['id']}", headers=as_user(users["recruiter"])).status_code == 404
-    assert client.get(f"/api/profiles/{nusrat['id']}", headers=as_user(users["recruiter"])).status_code == 404
+    assert client.get("/api/profiles/999999", headers=as_user(users["recruiter"])).status_code == 404

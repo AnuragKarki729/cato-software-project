@@ -3,14 +3,15 @@
 // The filters come from Find candidates (Responsibility 4); Save search, Bookmark
 // (Responsibility 6) and Invite (Responsibility 8) plug into the buttons on this page.
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Bookmark, CircleAlert, Info, SearchX, Send, SlidersHorizontal } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Bookmark, CircleAlert, Info, SearchX, SlidersHorizontal } from 'lucide-react';
 import { api } from '../../api.js';
 import AppHeader from '../../components/AppHeader.jsx';
-import VideoPoster from '../../components/ui/VideoPoster.jsx';
-import { MatchScore } from '../../components/ui/MatchScore.jsx';
-import { Button, IconButton, Tag } from '../../components/ui/primitives.jsx';
-import { gpaLabel, internshipsLabel, score, yearLabel } from '../../utils/format.js';
+import CandidateCard from '../../components/CandidateCard.jsx';
+import useCandidateActions from '../../components/useCandidateActions.jsx';
+import { Button, Tag } from '../../components/ui/primitives.jsx';
+import { gpaLabel } from '../../utils/format.js';
+import { carry, fromApi, fromSearch, toQuery } from '../../utils/filters.js';
 
 const PAGE = 5;
 
@@ -22,42 +23,13 @@ function filterTags(filter) {
   return [...tags, ...filter.skills];
 }
 
-function CandidateCard({ result }) {
-  const profileLink = `/role/${result.applicant_id}/profile`;
-  const matched = new Set(result.matched_skills);
-  const others = result.skills.filter((skill) => !matched.has(skill));
-  return (
-    <article className="rr-card" aria-label={`#${result.rank} ${result.name}, match score ${score(result.match_score)}`}>
-      <VideoPoster src={result.pitch_url} kind={`#${result.rank}`} seconds={result.pitch_duration} name={result.name}
-        label={`${result.name}'s pitch video`} emptyText="No pitch yet" />
-      <div className="rr-card__info">
-        <span className="rr-card__rank">#{result.rank} match</span>
-        <h2 className="rr-card__name"><Link to={profileLink}>{result.name}</Link></h2>
-        <p className="rr-card__meta ui-text-soft">
-          {result.field_of_study} · {yearLabel(result.year)} · GPA {gpaLabel(result.gpa)} · {internshipsLabel(result.internships)}
-        </p>
-        <span className="rr-card__pill"><strong>{score(result.match_score)}</strong> match</span>
-      </div>
-      <div className="rr-card__skills ui-tags">
-        {result.matched_skills.map((skill) => <Tag key={skill} match>{skill}</Tag>)}
-        {others.map((skill) => <Tag key={skill}>{skill}</Tag>)}
-        {result.required_skills_count > 0 && (
-          <span className="ui-text-xs ui-text-muted">{result.matched_skills.length} of {result.required_skills_count} required skills</span>
-        )}
-      </div>
-      <MatchScore value={result.match_score} />
-      <div className="rr-card__actions">
-        <div>
-          <IconButton icon={Bookmark} label="Bookmark candidate" disabled title="Bookmarks are Responsibility 6 and not connected yet" />
-          <Button variant="primary" size="sm" icon={Send} disabled title="Invitations are Responsibility 8 and not built yet">Invite</Button>
-        </div>
-        <Button variant="secondary" size="sm" to={profileLink}>View profile</Button>
-      </div>
-    </article>
-  );
-}
-
 export default function RankedResults() {
+  const [searchParams] = useSearchParams();
+  // Filters from Find candidates travel in the URL; without them the saved filter is used.
+  const urlFilter = fromSearch(searchParams);
+  const filterQuery = urlFilter ? `&${toQuery(urlFilter)}` : '';
+  const suffix = carry(searchParams);
+  const actions = useCandidateActions();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -66,18 +38,18 @@ export default function RankedResults() {
 
   useEffect(() => {
     let active = true;
-    api.get(`/matching/results?offset=0&limit=${PAGE}`)
+    api.get(`/matching/results?offset=0&limit=${PAGE}${filterQuery}`)
       .then((page) => { if (active) setData(page); })
       .catch((err) => { if (!active) return; if (err.status === 404) setNoFilter(true); else setError(err.message); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [filterQuery]);
 
   async function loadMore() {
     setLoadingMore(true);
     setError('');
     try {
-      const page = await api.get(`/matching/results?offset=${data.results.length}&limit=${PAGE}`);
+      const page = await api.get(`/matching/results?offset=${data.results.length}&limit=${PAGE}${filterQuery}`);
       setData((current) => ({ ...page, results: [...current.results, ...page.results] }));
     } catch (err) {
       setError(err.message);
@@ -86,7 +58,19 @@ export default function RankedResults() {
     }
   }
 
+  async function saveSearch() {
+    // Saved searches are Responsibility 6 (Aye Myo Myat): POST /api/saved/searches.
+    try {
+      await api.post('/saved/searches', { name: filterTags(data.filter).slice(0, 2).join(', '), ...data.filter });
+      actions.notify({ title: 'Search saved', message: 'Run it again any time from Saved.' });
+    } catch (err) {
+      actions.notify({ title: 'Search not saved', tone: 'error',
+        message: err.status === 404 || err.status === 405 ? 'Saved searches are not connected yet (Responsibility 6).' : err.message });
+    }
+  }
+
   const shown = data?.results.length ?? 0;
+  const editLink = data ? `/find?${toQuery(fromApi(data.filter))}` : '/find';
   const remaining = data ? data.total - shown : 0;
 
   return (
@@ -101,8 +85,8 @@ export default function RankedResults() {
             </h1>
           </div>
           <div className="rr-actions">
-            <Button variant="ghost" size="md" icon={Bookmark} disabled title="Saved searches are Responsibility 6 and not connected yet">Save search</Button>
-            <Button variant="secondary" size="md" icon={SlidersHorizontal} to="/find">Edit filters</Button>
+            <Button variant="ghost" size="md" icon={Bookmark} onClick={saveSearch} disabled={!data}>Save search</Button>
+            <Button variant="secondary" size="md" icon={SlidersHorizontal} to={editLink}>Edit filters</Button>
           </div>
         </div>
 
@@ -142,13 +126,13 @@ export default function RankedResults() {
             <span className="ui-empty__icon"><SearchX aria-hidden="true" /></span>
             <h2 className="ui-h5">No candidates match these filters</h2>
             <p className="ui-text-soft">Every applicant missed at least one hard requirement. Try a lower minimum year, GPA or internships, or a different field of study.</p>
-            <Button variant="secondary" size="md" icon={SlidersHorizontal} to="/find">Edit filters</Button>
+            <Button variant="secondary" size="md" icon={SlidersHorizontal} to={editLink}>Edit filters</Button>
           </section>
         )}
 
         {data && data.total > 0 && (
           <div className="rr-list">
-            {data.results.map((result) => <CandidateCard key={result.applicant_id} result={result} />)}
+            {data.results.map((result) => <CandidateCard key={result.applicant_id} result={result} suffix={suffix} actions={actions} />)}
           </div>
         )}
 
@@ -163,6 +147,7 @@ export default function RankedResults() {
           </div>
         )}
       </main>
+      {actions.ui}
     </div>
   );
 }

@@ -179,3 +179,41 @@ def test_single_applicant_result(client, users, fake_storage):
     failing = client.get(f"/api/matching/results/{sara}", headers=headers).json()
     assert failing["rank"] is None and failing["meets_requirements"] is False
     assert client.get("/api/matching/results/999999", headers=headers).status_code == 404
+
+
+# ---------- Filters sent from the Find candidates form ----------
+
+FORM = "field_of_study=Computer+Science&min_year=3&min_gpa=3&min_internships=1&skills=Python&skills=SQL&skills=React&skills=Docker"
+
+
+def test_form_filters_work_without_a_saved_filter(client, users, fake_storage):
+    headers = as_user(users["recruiter"])  # Aye has no saved filter
+    assert client.get("/api/matching/results", headers=headers).status_code == 404
+    body = client.get(f"/api/matching/results?limit=50&{FORM}", headers=headers).json()
+    saved = client.get("/api/matching/results?limit=50", headers=as_user(users["other_recruiter"])).json()
+    assert body["filter"] == saved["filter"]  # same values as Siwakorn's demo filter
+    assert [r["applicant_id"] for r in body["results"]] == [r["applicant_id"] for r in saved["results"]]
+
+
+def test_form_filters_override_the_saved_filter(client, users, fake_storage):
+    headers = as_user(users["other_recruiter"])
+    body = client.get("/api/matching/results?limit=50&field_of_study=Business", headers=headers).json()
+    assert body["filter"]["field_of_study"] == "Business" and body["filter"]["skills"] == []
+    assert [r["name"] for r in body["results"]] == ["Sara Ahmed"]
+    one = client.get(f"/api/matching/results/{body['results'][0]['applicant_id']}?field_of_study=Business", headers=headers).json()
+    assert one["rank"] == 1
+
+
+@pytest.mark.parametrize("query", ["field_of_study=Astrology", "skills=Cooking", "min_year=9", "min_gpa=5"])
+def test_form_filters_use_fixed_options(client, users, query):
+    assert client.get(f"/api/matching/results?{query}", headers=as_user(users["recruiter"])).status_code == 422
+
+
+def test_live_preview_counts(client, users):
+    headers = as_user(users["recruiter"])
+    everyone = client.get("/api/matching/preview", headers=headers).json()
+    assert everyone["total"] == everyone["field"] == everyone["field_and_year"] == everyone["passing"] == 9
+    counts = client.get(f"/api/matching/preview?{FORM}", headers=headers).json()
+    # 9 complete profiles -> 7 in Computer Science -> 6 in year 3+ -> 6 with GPA 3.00+ and 1+ internship
+    assert counts == {"total": 9, "field": 7, "field_and_year": 6, "passing": 6}
+    assert client.get("/api/matching/preview", headers=as_user(users["applicant"])).status_code == 403

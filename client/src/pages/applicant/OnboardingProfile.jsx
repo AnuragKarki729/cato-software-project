@@ -168,7 +168,7 @@ export default function OnboardingProfile({ editing = false }) {
 
   const header = editing ? <AppHeader /> : (
     <header className="ob-header">
-      <Logo to="/onboarding/profile" />
+      <Logo />
       <Stepper />
       <Button variant="ghost" size="md" onClick={handleSaveAndExit} disabled={!!busy || !options}>Save and exit</Button>
     </header>

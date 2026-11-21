@@ -56,7 +56,7 @@ export function Logo({ to = '/' }) {
 }
 
 /** Labelled <select> from a fixed list of options: [{ value, label }]. */
-export function SelectField({ label, value, onChange, options, placeholder = 'Select…', help, error, required, name }) {
+export function SelectField({ label, value, onChange, options, placeholder = 'Select…', help, error, required, name, allowEmpty = false }) {
   const id = useId();
   const empty = value === '' || value === null || value === undefined;
   return (
@@ -66,7 +66,7 @@ export function SelectField({ label, value, onChange, options, placeholder = 'Se
         <select id={id} name={name} className={cx('ui-control', empty && 'is-empty')} value={empty ? '' : value} required={required}
           aria-invalid={error ? 'true' : undefined} aria-describedby={help || error ? `${id}-help` : undefined}
           onChange={(event) => onChange(event.target.value)}>
-          <option value="" disabled>{placeholder}</option>
+          <option value="" disabled={!allowEmpty}>{placeholder}</option>
           {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
         <ChevronDown aria-hidden="true" />
@@ -76,15 +76,30 @@ export function SelectField({ label, value, onChange, options, placeholder = 'Se
   );
 }
 
-export function TextField({ label, help, error, ...props }) {
+/** Labelled text input. `icon` adds a leading Lucide icon, as in the Figma "Input" component. */
+export function TextField({ label, help, error, icon: Icon, ...props }) {
   const id = useId();
+  const input = (
+    <input id={id} className="ui-control" aria-invalid={error ? 'true' : undefined}
+      aria-describedby={help || error ? `${id}-help` : undefined} {...props} />
+  );
   return (
     <div className="ui-field">
       <label className="ui-label" htmlFor={id}>{label}</label>
-      <input id={id} className="ui-control" aria-invalid={error ? 'true' : undefined}
-        aria-describedby={help || error ? `${id}-help` : undefined} {...props} />
+      {Icon ? <div className="ui-control-wrap ui-control-wrap--icon"><Icon aria-hidden="true" />{input}</div> : input}
       {(error || help) && <p id={`${id}-help`} className={error ? 'ui-field-error' : 'ui-help'}>{error || help}</p>}
     </div>
+  );
+}
+
+/** Figma "Checkbox" with a label and an optional description. */
+export function Checkbox({ label, description, checked, onChange, ...props }) {
+  return (
+    <label className="ui-check">
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} {...props} />
+      <span className="ui-check__box" aria-hidden="true"><Check /></span>
+      <span className="ui-check__text"><span className="ui-check__label">{label}</span>{description && <span className="ui-text-muted">{description}</span>}</span>
+    </label>
   );
 }
 

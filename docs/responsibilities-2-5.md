@@ -40,9 +40,25 @@ page "3 · Screens + prototype" (frames P4a, P5, P8, P9 and the Resume viewer / 
   (`offset`/`limit`) for the **Load more** button.
 - `GET /matching/results/{applicant_id}` gives the "#N for your search" badge and the score
   breakdown on the candidate profile.
+- Every matching endpoint also takes the filter as query parameters (`field_of_study`, `min_year`,
+  `min_gpa`, `min_internships`, `skills=...`). Find candidates sends them, so Find → Ranked results →
+  Candidate profile works before Responsibility 4 saves filters; without them the saved filter is used.
+- `GET /matching/preview` returns the live funnel counts shown on Find candidates.
 - States: loading skeletons, "Set up your search first" (no filter yet), "No candidates match", errors.
 - Unit tests: `server/tests/test_matching.py` (formula, hard filters, ties, API) and
   `server/tests/test_profiles.py` (validation, drafts, resume rules, permissions).
+
+## Full Figma UI
+
+Every screen in the Figma is implemented: Landing, Sign up, Log in, both onboarding steps, My profile,
+Invitations, Find candidates (and its cleared state), Ranked results, Candidate profile, Invite dialog,
+Sent invitations, Video feed (recruiter and applicant views) and Saved, with the mobile layouts.
+Teammates' logic is kept as it was (sign-up/log-in, pitch upload and trimming, the feed); only the UI changed.
+The Cato logo always goes to the landing page.
+
+Where a teammate's endpoint is not live yet, the button calls the planned route and the toast says it is
+not connected, and list pages (Invitations, Sent invitations, Saved) show the design's sample content with
+a one-line note. The samples are in `client/src/data/samples.js`; delete that file once the routes exist.
 
 ## Where teammates plug in
 

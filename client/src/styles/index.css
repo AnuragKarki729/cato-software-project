@@ -4,3 +4,4 @@
 @import './components.css';
 @import './ui.css';    /* design system (Responsibilities 2 and 5) */
 @import './pages.css'; /* profile, onboarding, results and candidate pages */
+@import './public.css'; /* landing, sign up and log in pages */

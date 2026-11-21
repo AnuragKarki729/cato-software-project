@@ -42,3 +42,10 @@ class RankedResults(BaseModel):
     offset: int
     limit: int
     results: list[MatchResult]
+
+
+class FilterPreview(BaseModel):
+    total: int  # complete profiles
+    field: int  # ... in the chosen field of study (or any)
+    field_and_year: int  # ... and at or above the minimum year
+    passing: int  # ... and passing every hard filter
