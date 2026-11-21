@@ -58,17 +58,24 @@ Every other table points back to `user.id`.
 
 ### `applicantprofile` – Responsibility 2 · `models/applicant_profile.py`
 
+The education fields may be empty while the applicant is still on "Save draft". Matching only
+uses profiles whose details are complete; onboarding also needs the resume.
+
 | Field | Type | Notes |
 |---|---|---|
 | id | int | primary key |
 | user_id | int | → `user.id`, unique (one profile per applicant) |
-| university | str | |
-| field_of_study | str | one of the fixed options |
-| year | int | 1–5 (5 = graduated) |
-| gpa | float | 0.0–4.0 |
-| skills | str | comma separated, e.g. `"Python,React,SQL"` |
-| internships | int | number completed |
-| resume_location | str or null | storage key of the resume PDF → [uploads.md](uploads.md) |
+| university | str or null | one of the fixed options; shown, not matched |
+| field_of_study | str or null | one of the fixed options |
+| year | int or null | 1–5 (5 = graduated) |
+| gpa | float or null | 0.00–4.00 |
+| skills | str | comma separated, e.g. `"Python,React,SQL"` (up to 10) |
+| internships | int or null | 0–5 (5 = five or more) |
+| resume_location | str or null | storage key of the resume PDF (Cloudinary `raw`) → [uploads.md](uploads.md) |
+| resume_name | str or null | original file name |
+| resume_size | int or null | bytes (5 MB max) |
+| resume_uploaded_at | datetime or null | |
+| created_at, updated_at | datetime | `created_at` breaks ties in the ranking (newest first) |
 
 ### `video` – Responsibility 1 · `models/video.py`
 

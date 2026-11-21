@@ -50,6 +50,9 @@ function AppRoutes() {
         <Route path="/onboarding/profile" element={<OnboardingProfile />} />
         <Route path="/onboarding/video" element={<OnboardingVideo />} />
         <Route path="/profile" element={<MyProfile />} />
+        {/* Responsibility 2: edit the profile, and see it the way recruiters do */}
+        <Route path="/profile/edit" element={<OnboardingProfile editing />} />
+        <Route path="/profile/preview" element={<ApplicantProfile preview />} />
         <Route path="/invitations" element={<Invitations />} />
       </Route>
 

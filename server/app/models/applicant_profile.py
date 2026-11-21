@@ -1,0 +1,43 @@
+# Responsibility 2: Applicant profile and resume
+# Owner: Nusrat Begam (6638009)
+from datetime import datetime, timezone
+
+from sqlalchemy import Column, DateTime
+from sqlmodel import Field, SQLModel
+
+
+def utcnow() -> datetime:
+    # Naive UTC, like the other tables: MySQL DATETIME and SQLite return naive values.
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+class ApplicantProfile(SQLModel, table=True):
+    """One profile per applicant.
+
+    The education fields may be empty while the applicant is still filling in the
+    onboarding form ("Save draft"). Only complete profiles are used for matching.
+    """
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", unique=True)
+    university: str | None = None
+    field_of_study: str | None = None
+    year: int | None = None  # 1 to 5 (5 = graduated)
+    gpa: float | None = None  # 0.00 to 4.00
+    skills: str = ""  # comma separated, e.g. "Python,React,SQL"
+    internships: int | None = None
+    resume_location: str | None = None  # storage key of the resume PDF
+    resume_name: str | None = None  # original file name, shown in the UI
+    resume_size: int | None = None  # bytes
+    resume_uploaded_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=False)))
+    created_at: datetime = Field(default_factory=utcnow, sa_column=Column(DateTime(timezone=False), nullable=False))
+    updated_at: datetime = Field(default_factory=utcnow, sa_column=Column(DateTime(timezone=False), nullable=False))
+
+    @property
+    def details_complete(self) -> bool:
+        """All the fields matching needs are filled in."""
+        return None not in (self.university, self.field_of_study, self.year, self.gpa, self.internships)
+
+    @property
+    def onboarding_complete(self) -> bool:
+        """Onboarding also needs the resume PDF."""
+        return self.details_complete and self.resume_location is not None

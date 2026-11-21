@@ -16,7 +16,12 @@ from app.services.auth_service import hash_password
 
 @pytest.fixture
 def client():
+    # main.py creates the tables and seeds once at import, so rebuild them for every test.
+    from app.seed import seed_demo_profiles, seed_if_empty
     SQLModel.metadata.drop_all(engine)
+    SQLModel.metadata.create_all(engine)
+    seed_if_empty()
+    seed_demo_profiles()
     with TestClient(app) as c:
         yield c
 

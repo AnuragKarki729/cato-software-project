@@ -1,7 +1,11 @@
-// Responsibility 7 — Aye Myo Myat (6837919)
+// Responsibility 7 — Aye Myo Myat (6837919): log-in logic.
+// UI from Figma "P3 · Log in" — Nusrat Begam (6638009).
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { CircleAlert, CircleCheck, Lock, Mail } from 'lucide-react';
 import { homeFor, useAuth } from '../../context/AuthContext.jsx';
+import AuthShell from '../../components/AuthShell.jsx';
+import { Button, TextField } from '../../components/ui/primitives.jsx';
 
 const LogIn = () => {
   const [searchParams] = useSearchParams();
@@ -28,27 +32,27 @@ const LogIn = () => {
   };
 
   return (
-    <div className="container">
-      <h1 className="center">Log in as {role}</h1>
-      <p className="muted">Aye Myo Myat, 6837919</p>
-      <p className="muted">Responsibility 7 (Sign up, log in and roles)</p>
-
-      <form className="card stack" onSubmit={submit}>
-        <label className="field">
-          Email address
-          <input className="input" type="email" autoComplete="email" required maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} />
-        </label>
-        <label className="field">
-          Password
-          <input className="input" type="password" autoComplete="current-password" required maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} />
-        </label>
-
-        {(error || sessionError) && <p className="error" role="alert">{error || sessionError}</p>}
-        <button className="btn" disabled={busy}>{busy ? 'Logging in…' : 'Log in'}</button>
-        <p className="muted center">New to Cato? <Link to={`/signup?role=${role}`}>Create an account</Link></p>
-        <p className="muted center">Demo accounts: anurag@cato.test, nusrat@cato.test, aye@cato.test, siwakorn@cato.test (password1)</p>
+    <AuthShell title="Welcome back to better hiring."
+      lead="Pick up where you left off: new invitations, fresh pitches and your saved searches."
+      switchLabel="Sign up" switchTo={`/signup?role=${role}`}>
+      <form className="au-stack" onSubmit={submit}>
+        <div className="au-heading">
+          <h1 className="ui-h2">Log in</h1>
+          <p className="ui-text-soft au-desktop">New to Cato? <Link className="ui-link" to={`/signup?role=${role}`}>Create an account</Link></p>
+          <p className="ui-text-soft au-mobile">Log in to see your profile or your candidates.</p>
+        </div>
+        <div className="au-fields">
+          <TextField label="Email address" icon={Mail} type="email" autoComplete="email" required maxLength={254}
+            value={email} onChange={(e) => setEmail(e.target.value)} disabled={busy} />
+          <TextField label="Password" icon={Lock} type="password" autoComplete="current-password" required maxLength={128}
+            value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} />
+        </div>
+        {(error || sessionError) && <p className="ui-alert ui-alert--error" role="alert"><CircleAlert />{error || sessionError}</p>}
+        <Button type="submit" variant="primary" size="lg" block disabled={busy}>{busy ? 'Logging in…' : 'Log in'}</Button>
+        <p className="ui-alert ui-alert--info au-desktop"><CircleCheck />Applicants land on My profile; recruiters land on Find candidates.</p>
+        <p className="ui-text-soft au-mobile au-center">New to Cato? <Link to={`/signup?role=${role}`}>Create an account</Link></p>
       </form>
-    </div>
+    </AuthShell>
   );
 };
 
