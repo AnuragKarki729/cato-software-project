@@ -47,16 +47,17 @@ const OnboardingVideo = () => {
 
     video.onloadedmetadata = () => {
       URL.revokeObjectURL(url);
-      const { videoWidth, videoHeight, duration: vidDuration } = video;
-
-      if (videoWidth > videoHeight) {
-        setMessage('Please choose a portrait video.');
+      const { duration: vidDuration } = video;
+      if (!Number.isFinite(vidDuration) || vidDuration <= 0) {
+        setError('Could not read how long this video is. Please try another file.');
         return;
       }
 
+      // Portrait and landscape are both fine: the Figma pitch player is 16:9.
+      // Browsers often report a 20 s clip as 20.02 s, so allow half a second before asking to trim.
       setFile(selectedFile);
-      setDuration(vidDuration);
-      if (vidDuration > MAX_SECONDS) {
+      setDuration(Math.min(vidDuration, MAX_SECONDS));
+      if (vidDuration > MAX_SECONDS + 0.5) {
         setShowTrimming(true);
         setMessage('Select the beginning and end of a 20-second clip, then trim it.');
       } else {
@@ -169,7 +170,7 @@ const OnboardingVideo = () => {
                   ) : (
                     <button type="button" className="pv-empty" onClick={choose}>
                       <span className="pv-empty__icon"><Upload aria-hidden="true" /></span>
-                      <strong>Record or choose a portrait video</strong>
+                      <strong>Record or choose a video</strong>
                       <span>On a phone this opens the camera. Up to {MAX_SECONDS} seconds; longer clips can be trimmed.</span>
                     </button>
                   )}
@@ -201,7 +202,7 @@ const OnboardingVideo = () => {
               <section className="ui-card">
                 <h2 className="ui-h5">Before you record</h2>
                 <ul className="in-points">
-                  {['Face a light source, not a window behind you', 'Quiet room, phone on silent', 'Look at the camera, not at the screen', `Portrait, max ${MAX_SECONDS} s; MP4, MOV or WebM`].map((tip) => <li key={tip}><Check aria-hidden="true" />{tip}</li>)}
+                  {['Face a light source, not a window behind you', 'Quiet room, phone on silent', 'Look at the camera, not at the screen', `Max ${MAX_SECONDS} s; MP4, MOV or WebM`].map((tip) => <li key={tip}><Check aria-hidden="true" />{tip}</li>)}
                 </ul>
               </section>
             </aside>
