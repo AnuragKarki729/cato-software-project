@@ -15,6 +15,7 @@ Style pages with Tailwind classes (`className="rounded-lg bg-white p-4"`); there
 - [docs/database.md](docs/database.md) – MySQL tables
 - [docs/uploads.md](docs/uploads.md) – video and resume storage
 - [docs/client.md](docs/client.md) – React pages and components
+- [docs/responsibilities-2-5.md](docs/responsibilities-2-5.md) – applicant profile, resume and matching (Nusrat)
 
 ## Run it
 
@@ -69,7 +70,7 @@ docker compose exec server uv run python -m app.set_password aye@cato.test
 ```
 
 Choose the password interactively. No database wipe or Cloudinary configuration change is needed.
-See [Responsibilities 6 and 7](docs/responsibilities-6-7.md) for implementation details and a demo checklist.
+See [Responsibilities 6 and 7](docs/responsibilities-6-7.md) and [Responsibilities 2 and 5](docs/responsibilities-2-5.md) for implementation details and demo checklists.
 
 ## Folder structure
 
@@ -110,11 +111,11 @@ Search the code for `Responsibility N` to find your files. Unbuilt endpoints ret
 |---|---|---|---|
 | **Group A – Applicant profile and videos** ||||
 | 1 | Video upload and video retrieval | `routers/videos.py`, `services/storage_service.py` ✅ | `OnboardingVideo.jsx`, `MyProfile.jsx` |
-| 2 | Applicant profile and resume | `routers/profiles.py` | `OnboardingProfile.jsx`, `MyProfile.jsx`, `ApplicantProfile.jsx` |
+| 2 | Applicant profile and resume | `routers/profiles.py` ✅ | `OnboardingProfile.jsx`, `MyProfile.jsx`, `ApplicantProfile.jsx` ✅ |
 | 3 | Short-form video feed *(optional)* | `routers/feed.py` | `VideoFeed.jsx` |
 | **Group B – Recruiter search and matching** ||||
 | 4 | Recruiter filter page | `routers/filters.py` | `FindCandidates.jsx` |
-| 5 | Candidate matching and ranked results | `routers/matching.py`, `services/matching_service.py` ✅ | `RankedResults.jsx` |
+| 5 | Candidate matching and ranked results | `routers/matching.py`, `services/matching_service.py` ✅ | `RankedResults.jsx` ✅ |
 | 6 | Saved searches and bookmarks *(optional)* | `routers/saved.py` ✅ | `Saved.jsx`, `components/BookmarkButton.jsx` ✅ |
 | **Group C – Accounts and invitations** ||||
 | 7 | Sign up, log in and roles | `routers/auth.py`, `services/auth_service.py` ✅ | `SignUp.jsx`, `LogIn.jsx`, shared route guards ✅ |
