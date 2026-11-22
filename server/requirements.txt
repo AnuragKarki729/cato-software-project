@@ -4,3 +4,5 @@ pymysql>=1.2.3
 cryptography
 cloudinary>=1.47.0
 python-dotenv>=1.2.4
+httpx>=0.28.1
+pypdf>=6.1.1

@@ -3,17 +3,19 @@
 // endpoints (Anurag Karki, 6838852); this page shows them next to the profile.
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Briefcase, Building2, CircleAlert, Eye, GraduationCap, Mail, Pencil, RotateCcw, ShieldCheck, Star, Trash2, Video } from 'lucide-react';
+import { Briefcase, Building2, CircleAlert, Eye, GraduationCap, Mail, Pencil, Plus, RotateCcw, Star, Trash2, Video } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import AppHeader from '../../components/AppHeader.jsx';
-import ResumeUpload from '../../components/ui/ResumeUpload.jsx';
+import { AboutCard, ReplaceResume, ResumeCard } from '../../components/ProfileCards.jsx';
 import ResumeViewer from '../../components/ui/ResumeViewer.jsx';
 import VideoPoster from '../../components/ui/VideoPoster.jsx';
-import { Avatar, Badge, Button, ConfirmDialog, Tag, Toast } from '../../components/ui/primitives.jsx';
-import { duration, gpaLabel, internshipsLabel, shortDate, yearLabel } from '../../utils/format.js';
+import VideoViewer from '../../components/ui/VideoViewer.jsx';
+import { Avatar, Badge, Button, ConfirmDialog, Toast } from '../../components/ui/primitives.jsx';
+import { gpaLabel, internshipsLabel, yearLabel } from '../../utils/format.js';
 
-const MAX_EXTRA_VIDEOS = 5;
+// Fallback until GET /api/options answers; the server is the source of truth (Responsibility 1).
+const DEFAULT_MAX_EXTRA_VIDEOS = 3;
 
 export default function MyProfile() {
   const { user } = useAuth();
@@ -21,10 +23,14 @@ export default function MyProfile() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(undefined); // undefined = loading, null = not created yet
   const [videos, setVideos] = useState([]);
+  const [maxExtras, setMaxExtras] = useState(DEFAULT_MAX_EXTRA_VIDEOS);
+  const [options, setOptions] = useState(null);  // for the About card's editor
+  const [sheet, setSheet] = useState(null);      // 'about' | 'resume', open on its own
+  const [aboutEditing, setAboutEditing] = useState(false);
   const [error, setError] = useState('');
   const [toast, setToast] = useState(location.state?.toast ? { title: location.state.toast } : null);
-  const [viewing, setViewing] = useState(false);
   const [deleting, setDeleting] = useState(null);
+  const [watching, setWatching] = useState(null); // index into `playlist`
   const [busy, setBusy] = useState(false);
   const closeToast = useCallback(() => setToast(null), []);
 
@@ -43,6 +49,13 @@ export default function MyProfile() {
       setProfile(mine);
       setVideos(list);
     }).catch((err) => { if (active) { setError(err.message); setProfile(null); } });
+    api.get('/options')
+      .then((opts) => {
+        if (!active) return;
+        setOptions(opts);
+        if (opts.max_extra_videos) setMaxExtras(opts.max_extra_videos);
+      })
+      .catch(() => {}); // the fallback is fine; the server enforces the real limit
     return () => { active = false; };
   }, [user.id]);
 
@@ -63,6 +76,7 @@ export default function MyProfile() {
   const loading = profile === undefined;
   const pitch = videos.find((v) => v.kind === 'pitch');
   const extras = videos.filter((v) => v.kind === 'extra').reverse(); // oldest first
+  const playlist = [...(pitch ? [pitch] : []), ...extras];
   // Matching (Responsibility 5) includes every profile whose details are complete.
   const complete = !!profile?.details_complete;
   const visible = complete;
@@ -92,7 +106,9 @@ export default function MyProfile() {
             <div className="pf-head__info">
               <div className="pf-head__name">
                 <h1 className="ui-h2">{user.name}</h1>
-                {visible ? <Badge tone="success">Visible to recruiters</Badge> : <Badge tone="warning">Not visible to recruiters yet</Badge>}
+                {/* Only the warning. Being visible is the point of having a profile, so saying
+                    so every time is noise; not being visible is the thing worth a badge. */}
+                {!visible && <Badge tone="warning">Not visible to recruiters yet</Badge>}
               </div>
               <div className="pf-meta">
                 {profile?.university && <span><Building2 aria-hidden="true" />{profile.university}</span>}
@@ -110,87 +126,104 @@ export default function MyProfile() {
           </section>
         )}
 
-        <div className="pf-columns">
           <section className="pf-section" aria-labelledby="videos-title">
             <div className="pf-section__head">
               <div>
                 <h2 id="videos-title" className="ui-h4">Videos</h2>
-                <p className="ui-text-muted">{pitch ? '1 pitch' : 'No pitch yet'} + {extras.length} of {MAX_EXTRA_VIDEOS} extra videos</p>
+                <p className="ui-text-muted">{pitch ? '1 pitch' : 'No pitch yet'} + {extras.length} of {maxExtras} extra videos</p>
               </div>
-              <Button variant="secondary" size="sm" icon={Video} disabled title="Extra videos are part of Responsibility 1 and not built yet">Add video</Button>
+              <Button variant="secondary" size="sm" icon={Video} to="/videos/add" disabled={extras.length >= maxExtras}
+                title={extras.length >= maxExtras ? `You can have up to ${maxExtras} extra videos. Delete one to add another.` : undefined}>
+                Add video
+              </Button>
             </div>
-            <div className="pf-video-grid">
-              <article className="ui-card ui-vtile">
-                <VideoPoster size="tile" src={pitch?.url} kind="Pitch" seconds={pitch?.duration_seconds} name={user.name} label="your pitch video" />
-                <div className="ui-vtile__body">
-                  <div className="ui-vtile__text">
-                    <p className="ui-vtile__title">Elevator pitch</p>
-                    <p className="ui-text-xs ui-text-muted">{pitch ? `Required · uploaded ${shortDate(pitch.created_at)}` : 'Required · record or upload one to finish onboarding'}</p>
-                  </div>
-                  <div className="ui-vtile__actions">
-                    {pitch ? (
-                      <>
-                        <Button variant="secondary" size="sm" icon={RotateCcw} to="/onboarding/video">Replace</Button>
-                        {complete && <Badge tone="success">Visible to recruiters</Badge>}
-                      </>
-                    ) : (
-                      <Button variant="primary" size="sm" icon={Video} to="/onboarding/video">Upload pitch</Button>
-                    )}
-                  </div>
-                </div>
-              </article>
+            {/* Tiles are thumbnails only. Everything about a video lives in the viewer. */}
+          <div className="pf-video-grid">
+              {pitch ? (
+                <article className="ui-vtile pf-tile">
+                  <VideoPoster size="tile" src={pitch.url} seconds={pitch.duration_seconds} name={user.name}
+                    label="your pitch video" onPlay={() => setWatching(0)} preview />
+                  <span className="pf-tile__badge">Elevator pitch</span>
+                </article>
+              ) : (
+                <article className="ui-vtile pf-tile pf-tile--empty">
+                  <VideoPoster size="tile" name={user.name} label="your pitch video"
+                    emptyText="Record your pitch to finish onboarding" />
+                  <Button variant="primary" size="sm" icon={Video} to="/onboarding/video" className="pf-tile__cta">Upload pitch</Button>
+                </article>
+              )}
+
               {extras.map((video, index) => (
-                <article className="ui-card ui-vtile" key={video.id}>
-                  <VideoPoster size="tile" src={video.url} kind="Extra" seconds={video.duration_seconds} name={user.name} label={`extra video ${index + 1}`} />
-                  <div className="ui-vtile__body">
-                    <div className="ui-vtile__text">
-                      <p className="ui-vtile__title">Extra video {index + 1}</p>
-                      <p className="ui-text-xs ui-text-muted">Extra video {index + 1} of {MAX_EXTRA_VIDEOS} · {duration(video.duration_seconds)}</p>
-                    </div>
-                    <div className="ui-vtile__actions">
-                      <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setDeleting(video)}>Delete</Button>
-                    </div>
-                  </div>
+                <article className="ui-vtile pf-tile" key={video.id}>
+                  <VideoPoster size="tile" src={video.url} seconds={video.duration_seconds} name={user.name}
+                    label={`extra video ${index + 1}`} onPlay={() => setWatching(playlist.indexOf(video))} preview />
+                  <span className="pf-tile__badge pf-tile__badge--muted">{video.title}</span>
                 </article>
               ))}
+
+              {/* The same two cards a recruiter sees after the videos, in the same order, so
+                  this page and the preview of it are the same row. Clicking one opens that
+                  card on its own, and About is editable right there. */}
+              {profile && (
+                <article className="ui-vtile pf-tile pf-tile--sheet">
+                  <AboutCard profile={profile} options={options ?? undefined} editable
+                    onSaved={setProfile} onEditing={setAboutEditing} />
+                  {/* Not while the card is a form: a stray click on a label would open the
+                      dialog and take the half-typed values with it. */}
+                  {!aboutEditing && (
+                    <button type="button" className="pf-tile__open" onClick={() => setSheet('about')}
+                      aria-label="Open your profile details" />
+                  )}
+                </article>
+              )}
+
+              {profile && (
+                <article className="ui-vtile pf-tile pf-tile--sheet">
+                  <ResumeCard profile={profile} onOpen={() => setSheet('resume')}
+                    onChange={(updated, action) => { setProfile(updated); setToast({ title: action === 'removed' ? 'Resume removed' : 'Resume uploaded' }); }}
+                    onError={(message) => setToast({ title: 'Resume not uploaded', message, tone: 'error' })} />
+                </article>
+              )}
+
+              {/* After those cards: the invitation to add another video. */}
+              {extras.length < maxExtras && (
+                <Link to="/videos/add" className="pf-add" aria-label="Add another video">
+                  <span className="pf-add__plus" aria-hidden="true"><Plus /></span>
+                  <strong className="ui-text-xs">Add a video</strong>
+                  <span className="pf-add__hint">Add more to reveal your strengths to recruiters</span>
+                </Link>
+              )}
             </div>
-          </section>
-
-          <aside className="pf-sidebar">
-            <section className="ui-card" aria-labelledby="skills-title">
-              <div className="ui-card__head">
-                <h2 id="skills-title" className="ui-h5">Skills</h2>
-                <Link to="/profile/edit" className="ui-link">Edit</Link>
-              </div>
-              {profile?.skills?.length ? (
-                <div className="ui-tags">{profile.skills.map((skill) => <Tag key={skill}>{skill}</Tag>)}</div>
-              ) : (
-                <p className="ui-text-muted">No skills yet. Recruiters filter on skills, so add a few.</p>
-              )}
-            </section>
-
-            <section className="ui-card" aria-labelledby="resume-title">
-              <h2 id="resume-title" className="ui-h5">Resume</h2>
-              {loading ? <span className="ui-skeleton" style={{ height: 66 }} /> : (
-                <ResumeUpload profile={profile} showBadge={false} onOpen={() => setViewing(true)}
-                  onChange={(updated, action) => { setProfile(updated); setToast({ title: action === 'removed' ? 'Resume removed' : 'Resume uploaded' }); }}
-                  onError={(message) => setToast({ title: 'Resume not uploaded', message, tone: 'error' })} />
-              )}
-            </section>
-
-            <section className="ui-card" aria-labelledby="privacy-title">
-              <div className="pf-privacy__head">
-                <ShieldCheck aria-hidden="true" />
-                <h2 id="privacy-title" className="ui-h5">Privacy (PDPA)</h2>
-              </div>
-              <p className="ui-text-soft">
-                Recruiters on Cato can see your profile, videos and resume. Your email is not shown on your profile.
-              </p>
-            </section>
-          </aside>
-        </div>
+        </section>
       </main>
-      {viewing && profile?.resume_url && <ResumeViewer url={profile.resume_url} name={profile.resume_name} onClose={() => setViewing(false)} />}
+      {/* Clicking a card opens that card on its own: one item, so the viewer shows no
+          chevrons and no count. About stays editable inside it, with the room to be. */}
+      {sheet === 'about' && profile && (
+        <VideoViewer videos={[]} index={0} onIndex={() => {}} onClose={() => setSheet(null)}
+          extra={[{
+            kind: 'sheet', key: 'about', title: 'Your profile details', wide: true,
+            node: <AboutCard profile={profile} options={options ?? undefined} editable onSaved={setProfile} />,
+          }]} />
+      )}
+      {sheet === 'resume' && profile?.resume_url && (
+        <ResumeViewer url={profile.resume_url} name={profile.resume_name} onClose={() => setSheet(null)}
+          actions={
+            <ReplaceResume
+              onChange={(updated) => { setProfile(updated); setToast({ title: 'Resume uploaded' }); }}
+              onError={(message) => setToast({ title: 'Resume not uploaded', message, tone: 'error' })} />
+          } />
+      )}
+      {watching !== null && playlist[watching] && (
+        <VideoViewer
+          videos={playlist}
+          index={watching}
+          onIndex={setWatching}
+          onClose={() => setWatching(null)}
+          actions={(video) => (video.kind === 'pitch'
+            ? <Button variant="secondary" size="sm" icon={RotateCcw} to="/onboarding/video">Replace pitch</Button>
+            : <Button variant="ghost" size="sm" icon={Trash2} onClick={() => { setWatching(null); setDeleting(video); }}>Delete</Button>)}
+        />
+      )}
       {deleting && <ConfirmDialog busy={busy} onConfirm={deleteVideo} onCancel={() => setDeleting(null)} />}
       <Toast toast={toast} onClose={closeToast} />
     </div>

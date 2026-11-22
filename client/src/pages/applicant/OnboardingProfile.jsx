@@ -7,6 +7,7 @@ import { ArrowRight, Check, CircleAlert, Plus } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import AppHeader from '../../components/AppHeader.jsx';
+import OnboardingStepper from '../../components/OnboardingStepper.jsx';
 import ResumeUpload from '../../components/ui/ResumeUpload.jsx';
 import ResumeViewer from '../../components/ui/ResumeViewer.jsx';
 import { Button, Logo, SelectField, TextField, Toast } from '../../components/ui/primitives.jsx';
@@ -14,21 +15,7 @@ import { yearLabel } from '../../utils/format.js';
 
 const EMPTY = { university: '', field_of_study: '', year: '', gpa: '', internships: '', skills: [] };
 
-function Stepper() {
-  return (
-    <ol className="ui-stepper" aria-label="Onboarding steps">
-      <li className="ui-step is-current" aria-current="step">
-        <span className="ui-step__dot">1</span>
-        <span className="ui-step__text"><small>Step 1</small><strong>Profile &amp; resume</strong></span>
-      </li>
-      <li aria-hidden="true" className="ui-step__line" />
-      <li className="ui-step">
-        <span className="ui-step__dot">2</span>
-        <span className="ui-step__text"><small>Step 2</small><strong>Pitch video</strong></span>
-      </li>
-    </ol>
-  );
-}
+const Stepper = () => <OnboardingStepper current={1} />;
 
 const toForm = (profile) => profile ? {
   university: profile.university ?? '',
@@ -188,6 +175,48 @@ export default function OnboardingProfile({ editing = false }) {
   const list = (values, label = String) => values.map((value) => ({ value, label: label(value) }));
   const max = options.max_skills;
   const full = form.skills.length >= max;
+
+  // Step 1 of onboarding is the resume and nothing else: everything the form below asks for is
+  // read out of the PDF in the background while the applicant records their pitch, and they
+  // check it on step 3. The full form is still used for "Edit profile" (editing = true).
+  if (!editing) {
+    return (
+      <div className="ui-app">
+        {header}
+        <main className="ob-main">
+          <div className="ob-column">
+            <div className="ob-heading">
+              <p className="ui-overline">Step 1 of 3</p>
+              <h1 className="ui-h2">Start with your resume</h1>
+              <p className="ui-lead">
+                Upload your resume and we will read your university, year, GPA, internships and
+                skills out of it while you record your pitch. You check everything at the end.
+              </p>
+            </div>
+
+            <section className="ui-card ob-card" aria-labelledby="resume-title">
+              <h2 id="resume-title" className="ui-h4">Your resume</h2>
+              <p className="ui-text-soft">PDF, up to 5 MB. Recruiters can open it from your profile.</p>
+              <ResumeUpload profile={profile} onChange={onResumeChange} onOpen={() => setViewing(true)}
+                onError={(message) => setToast({ title: 'Resume not uploaded', message, tone: 'error' })} />
+            </section>
+
+            {errors.form && <p className="ui-alert ui-alert--error" role="alert"><CircleAlert />{errors.form}</p>}
+
+            <div className="ob-actions">
+              <Button variant="ghost" size="lg" onClick={handleSaveAndExit} disabled={!!busy}>Save and exit</Button>
+              <Button variant="primary" size="lg" icon={ArrowRight} to="/onboarding/video" disabled={!profile?.resume_url}
+                title={profile?.resume_url ? undefined : 'Upload your resume to carry on'}>
+                Continue to pitch video
+              </Button>
+            </div>
+          </div>
+        </main>
+        {viewing && profile?.resume_url && <ResumeViewer url={profile.resume_url} name={profile.resume_name} onClose={() => setViewing(false)} />}
+        <Toast toast={toast} onClose={closeToast} />
+      </div>
+    );
+  }
 
   return (
     <div className="ui-app">

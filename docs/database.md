@@ -10,7 +10,7 @@ Back to the [overview](overview.md).
 |---|---|
 | Container | `db` (image `mysql:8.4`) |
 | Database / user / password | `cato` / `cato` / `cato` (from `.env`) |
-| Data kept in | Docker volume `cato-sad_db-data` |
+| Data kept in | Docker volume `cato-simple_db-data` |
 | Reachable from | the `server` container only (no port on your machine) |
 | Tables created | automatically when the server starts |
 | Dummy data | added when the database is empty (`server/app/seed.py`) |
@@ -71,7 +71,7 @@ uses profiles whose details are complete; onboarding also needs the resume.
 | gpa | float or null | 0.00–4.00 |
 | skills | str | comma separated, e.g. `"Python,React,SQL"` (up to 10) |
 | internships | int or null | 0–5 (5 = five or more) |
-| resume_location | str or null | storage key of the resume PDF (Cloudinary `raw`) → [uploads.md](uploads.md) |
+| resume_location | str or null | storage key of the resume PDF (Cloudinary, `resource_type="raw"`) |
 | resume_name | str or null | original file name |
 | resume_size | int or null | bytes (5 MB max) |
 | resume_uploaded_at | datetime or null | |
@@ -83,7 +83,7 @@ uses profiles whose details are complete; onboarding also needs the resume.
 |---|---|---|
 | id | int | primary key |
 | applicant_id | int | → `user.id` |
-| file_location | str | storage key of the video → [uploads.md](uploads.md) |
+| file_location | str | storage key of the video (Cloudinary, `resource_type="video"`) |
 | kind | str | `"pitch"` (one per applicant) or `"extra"` (up to 5) |
 | duration_seconds | float | max 30 |
 | created_at | datetime | set automatically |

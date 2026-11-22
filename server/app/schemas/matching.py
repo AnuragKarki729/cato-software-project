@@ -26,6 +26,10 @@ class MatchResult(BaseModel):
     meets_requirements: bool = True
     pitch_url: str | None = None
     pitch_duration: float | None = None
+    # Responsibility 1 (issue #3): the title and caption the applicant gave their pitch,
+    # so the ranked feed can show them the same way the newest-first feed does.
+    pitch_title: str | None = None
+    pitch_description: str | None = None
 
 
 class CurrentFilter(BaseModel):

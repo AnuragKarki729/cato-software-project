@@ -11,17 +11,17 @@ This document explains how the whole app fits together. Each part has its own do
 |---|---|
 | [server.md](server.md) | FastAPI server: folders, routers, services, login, endpoints |
 | [database.md](database.md) | MySQL database: tables, fields, how they relate |
-| [uploads.md](uploads.md) | Video and resume file storage |
+| [responsibilities-2-5.md](responsibilities-2-5.md) | Applicant profile, resume and matching |
 | [client.md](client.md) | React client: pages, components, calling the API |
 
 ## Tech stack
 
 | Part | Technology |
 |---|---|
-| Client | React (JavaScript) + Tailwind CSS, run with Vite |
+| Client | React (JavaScript) + plain CSS, run with Vite |
 | Server | Python + FastAPI |
 | Database | MySQL + SQLModel (Python ORM) |
-| File storage | Docker volume (Cloudflare R2 possible later) |
+| File storage | Cloudinary (videos and resume PDFs) |
 | Running it | Docker Compose on one PC |
 
 ## How the parts connect
@@ -37,15 +37,16 @@ This document explains how the whole app fits together. Each part has its own do
 └──────────────┘               └──────┬───────┘          └──────┬───────┘
                                       │ files                   │
                                       ▼                         ▼
-                              "uploads" volume          "db-data" volume
-                           (videos and resumes)        (database files)
+                                  Cloudinary            "db-data" volume
+                           (videos and resume PDFs)     (database files)
 ```
 
 - The browser only talks to the **client** on port 5173.
 - Any request starting with `/api` is forwarded by the client's dev server to the **server** on port 8000.
 - Only the server talks to the **database**. MySQL is not reachable from outside Docker.
-- Uploaded files are saved in the `uploads` Docker volume and served back by the server at `/api/files/...`.
-- Everything is defined in `docker-compose.yml` under the project name `cato-sad`.
+- Uploaded files go to Cloudinary through `services/storage_service.py`, which returns the URL the
+  browser uses. Videos are uploaded as `resource_type="video"` and resume PDFs as `"raw"`.
+- Everything is defined in `docker-compose.yml` under the project name `cato-simple`.
 
 ## Folder structure
 
@@ -53,11 +54,11 @@ This document explains how the whole app fits together. Each part has its own do
 Cato-SoftwareAppDev-Project/
 ├── server/              FastAPI app, tests, Dockerfile        → server.md
 │   └── app/models/      database tables                       → database.md
-│   └── app/services/storage_service.py  file storage          → uploads.md
+│   └── app/services/storage_service.py  Cloudinary uploads
 ├── client/              React app, Dockerfile                 → client.md
 ├── docs/                these documents
 ├── docker-compose.yml   starts db + server + client
-├── .env.example         settings (copy to .env)
+├── .env                 settings (not committed; ask Anurag)
 └── README.md            quick start
 ```
 
@@ -109,23 +110,38 @@ There is no free-text search. Recruiters pick parameters from fixed options, and
 
    If no skills are required, the skills part counts as the full 60. Results are sorted highest first.
 
-The formula is already written in `server/app/services/matching_service.py` and tested.
+The formula is written in `server/app/services/matching_service.py` and tested.
+`score_breakdown()` returns the same score part by part, so a page can show where it came from.
 
 ## Current implementation status
 
-Responsibilities 6 (saved searches/bookmarks) and 7 (signup/login/roles) are implemented on
-`aye-myo-myat/resp-6-7`; see [implementation and demo checklist](responsibilities-6-7.md).
-Video upload/retrieval, the matching formula, storage services, fixed options, database tables,
-Docker setup and their tests are reused from the existing project.
+Updated 2026-11-21, describing `nusrat-begum/resp-2-5` and branches based on it.
 
-Other teammates' feature pages/endpoints still contain placeholders on this branch's starting
-main commit. In particular, applying a saved search updates the real current filters but does
-not implement the filter form or matching-results page.
+| # | Responsibility | State |
+|---|---|---|
+| 1 | Video upload and retrieval | Working. Page restyled. |
+| 2 | Applicant profile and resume | Working: `/api/profiles`, the `applicantprofile` table, onboarding, My profile, Applicant profile. |
+| 3 | Short-form video feed | Working. Page restyled. |
+| 4 | Recruiter filter page | **Not built.** No `routers/filters.py`. The `recruiterfilter` table exists and `FindCandidates.jsx` is styled. |
+| 5 | Candidate matching and ranked results | Working: `/api/matching/results`, `/results/{id}` and `/preview`, with the ranked results page. |
+| 6 | Saved searches and bookmarks | **Not live.** `routers/saved.py` is written but not mounted, and the `savedsearch` and `bookmark` models do not exist. |
+| 7 | Sign up, log in and roles | Working, including the onboarding step order. |
+| 8 | Invitations | **Not built.** No router, service or model. |
+
+The pages for Responsibilities 6 and 8 are styled and look finished, but they fall back to sample
+data from `client/src/data/samples.js` while their endpoints are missing. See
+[client.md](client.md) for which pages and what replaces them.
+
+A client design system was added along with Responsibilities 2 and 5: `client/src/components/ui/`,
+`AppHeader`, `AuthShell`, `CandidateCard`, `utils/format.js`, `utils/filters.js` and
+`styles/ui.css`. Every page uses it, so reuse it rather than adding new components.
+
+Detail per responsibility: [responsibilities-2-5.md](responsibilities-2-5.md) and
+[responsibilities-6-7.md](responsibilities-6-7.md).
 
 ## Running it
 
 ```bash
-cp .env.example .env
 docker compose up --build
 ```
 

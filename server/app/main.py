@@ -4,7 +4,7 @@ from sqlmodel import SQLModel
 import app.models  # registers every table (User, Video, AuthSession, RegistrationConsent, ApplicantProfile, RecruiterFilter)
 from app.routers import auth, videos, feed, options, profiles, matching
 from app.database import engine
-from app.seed import seed_demo_profiles, seed_if_empty
+from app.seed import seed_demo_profiles, seed_if_empty, seed_vocabulary
 
 app = FastAPI(title="Cato Recruitment Platform")
 
@@ -20,6 +20,7 @@ app.add_middleware(
 # Create database tables
 SQLModel.metadata.create_all(engine)
 seed_if_empty()
+seed_vocabulary()  # universities and fields of study, which then grow
 seed_demo_profiles()
 
 # Include routers

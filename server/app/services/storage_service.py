@@ -1,3 +1,4 @@
+import hashlib
 import uuid
 
 import cloudinary.uploader
@@ -8,6 +9,21 @@ import app.config
 # resource_type is "video" for videos (Responsibility 1) and "raw" for resume PDFs
 # (Responsibility 2). Raw files keep their extension in the Cloudinary public id, so the
 # browser receives them as application/pdf and can show them inline.
+
+
+def user_folder(email: str) -> str:
+    """The Cloudinary folder for one person, stable for as long as their email is.
+
+    Not the database id: that is a MySQL auto-increment, so every `docker compose down -v`
+    reseeds the same people with new ids and strands their old folder. Hashing the email
+    instead keeps one person in one folder across any number of database wipes.
+
+    The email itself is never put in the path. Cloudinary URLs are public and recruiters are
+    given them, so a readable address would hand out the applicant's email with every video.
+    STORAGE_SALT keeps the digest from being reproducible by guessing the email alone.
+    """
+    digest = hashlib.sha256(f"{app.config.STORAGE_SALT}{email.strip().lower()}".encode()).hexdigest()
+    return f"v1_cato/users/{digest[:16]}"
 
 
 def save(data: bytes, folder: str, extension: str, filename: str | None = None,

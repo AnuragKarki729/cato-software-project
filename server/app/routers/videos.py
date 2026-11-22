@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlmodel import Session, select
 
-from app.config import MAX_EXTRA_VIDEOS, MAX_VIDEO_SECONDS
+from app.config import MAX_EXTRA_VIDEOS, MAX_VIDEO_CAPTION, MAX_VIDEO_SECONDS, MAX_VIDEO_TITLE
 from app.database import get_session
 from app.models import User, Video
 from app.schemas.video import VideoOut
 from app.services import storage_service
 from app.services.auth_service import get_current_applicant, get_current_user
+from app.services.options_service import FREE_TOPIC, VIDEO_TITLES
 
 router = APIRouter(tags=["videos"])
 ALLOWED_EXTENSIONS = {"mp4", "mov", "webm"}
@@ -18,6 +19,8 @@ def as_video_out(video: Video) -> VideoOut:
         applicant_id=video.applicant_id,
         kind=video.kind,
         duration_seconds=video.duration_seconds,
+        title=video.title,
+        description=video.description,
         url=storage_service.get_url(video.file_location),
         created_at=video.created_at,
     )
@@ -27,6 +30,8 @@ def upload_video(
     file: UploadFile = File(...),
     kind: str = Form(...),  # "pitch" or "extra"
     duration_seconds: float = Form(...),
+    title: str = Form(FREE_TOPIC),  # a fixed title, or the applicant's own free-topic wording
+    description: str | None = Form(None),  # the applicant's caption
     user: User = Depends(get_current_applicant),
     session: Session = Depends(get_session),
 ):
@@ -34,6 +39,16 @@ def upload_video(
         raise HTTPException(status_code=422, detail="Video kind must be 'pitch' or 'extra'")
     if duration_seconds <= 0 or duration_seconds > MAX_VIDEO_SECONDS:
         raise HTTPException(status_code=422, detail=f"Videos must be between 1 and {MAX_VIDEO_SECONDS} seconds")
+    # Issue #3: the three structured titles stay fixed, because they are the questions a
+    # recruiter is looking for an answer to. A "Free topic" video is the applicant's own, so
+    # their own wording is allowed there and only the shape is checked — the same approach
+    # the growing vocabularies take in schemas/profile.py. Blank falls back to "Free topic".
+    title = " ".join((title or "").split()) or FREE_TOPIC
+    if title not in VIDEO_TITLES and len(title) > MAX_VIDEO_TITLE:
+        raise HTTPException(status_code=422, detail=f"Titles are limited to {MAX_VIDEO_TITLE} characters")
+    caption = (description or "").strip() or None
+    if caption and len(caption) > MAX_VIDEO_CAPTION:
+        raise HTTPException(status_code=422, detail=f"Captions are limited to {MAX_VIDEO_CAPTION} characters")
     if not file.content_type or not file.content_type.startswith("video/"):
         raise HTTPException(status_code=422, detail="Please upload a video file")
 
@@ -45,7 +60,9 @@ def upload_video(
     if kind == "extra" and sum(v.kind == "extra" for v in existing) >= MAX_EXTRA_VIDEOS:
         raise HTTPException(status_code=409, detail=f"You can upload up to {MAX_EXTRA_VIDEOS} short videos")
 
-    folder = f"v1_cato/users/{user.id}" if kind == "pitch" else f"v1_cato/users/{user.id}/shorts"
+    # Folder comes from the email, not the database id, so it survives a database wipe.
+    home = storage_service.user_folder(user.email)
+    folder = home if kind == "pitch" else f"{home}/shorts"
     key = storage_service.save(
         file.file.read(), folder, extension, filename="pitch" if kind == "pitch" else None
     )
@@ -57,7 +74,8 @@ def upload_video(
             if old.kind == "pitch":
                 session.delete(old)
 
-    video = Video(applicant_id=user.id, file_location=key, kind=kind, duration_seconds=duration_seconds)
+    video = Video(applicant_id=user.id, file_location=key, kind=kind, duration_seconds=duration_seconds,
+                  title=title, description=caption)
     session.add(video)
     session.commit()
     session.refresh(video)

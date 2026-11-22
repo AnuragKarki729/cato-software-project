@@ -66,6 +66,16 @@ DEMO_FILTERS = {
 }
 
 
+def seed_vocabulary():
+    """Put the original fixed lists in as the starting vocabulary. Safe on every start."""
+    from app.services import options_service, vocabulary_service
+
+    with Session(engine) as session:
+        vocabulary_service.seed(session, vocabulary_service.UNIVERSITY, options_service.UNIVERSITIES)
+        vocabulary_service.seed(session, vocabulary_service.FIELD_OF_STUDY, options_service.FIELDS_OF_STUDY)
+        vocabulary_service.seed(session, vocabulary_service.SKILL, options_service.SKILLS)
+
+
 def seed_demo_profiles():
     """Add the demo profiles and filter if they are missing. Safe to run on every start."""
     if os.getenv("SEED_DUMMY_DATA", "true").lower() == "false":

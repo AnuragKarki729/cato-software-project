@@ -11,7 +11,7 @@ class UserOut(BaseModel):
     email: str
     role: Literal['applicant', 'recruiter']
     company_name: str | None = None
-    onboarding_step: Literal['profile', 'video', 'complete'] = 'complete'
+    onboarding_step: Literal['profile', 'video', 'review', 'complete'] = 'complete'
 
 
 class LogInIn(BaseModel):

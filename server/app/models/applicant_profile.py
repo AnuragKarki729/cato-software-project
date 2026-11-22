@@ -29,6 +29,9 @@ class ApplicantProfile(SQLModel, table=True):
     resume_name: str | None = None  # original file name, shown in the UI
     resume_size: int | None = None  # bytes
     resume_uploaded_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=False)))
+    # Reading the resume with an LLM runs in the background after the upload, so the applicant
+    # never waits: "none" (no resume yet), "pending", "done" or "failed".
+    parse_status: str = "none"
     created_at: datetime = Field(default_factory=utcnow, sa_column=Column(DateTime(timezone=False), nullable=False))
     updated_at: datetime = Field(default_factory=utcnow, sa_column=Column(DateTime(timezone=False), nullable=False))
 

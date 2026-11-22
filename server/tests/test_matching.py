@@ -5,7 +5,7 @@ import pytest
 from sqlmodel import Session, select
 
 from app.database import engine
-from app.models import ApplicantProfile, RecruiterFilter, User
+from app.models import ApplicantProfile, RecruiterFilter, User, Video
 from app.services import storage_service
 from app.services.matching_service import match_score, passes_hard_filters, rank, score_breakdown, split_skills
 from tests.conftest import as_user
@@ -145,6 +145,24 @@ def test_ranked_results_for_the_demo_filter(client, users, fake_storage):
     top = results[0]
     assert top["name"] == "Mei Chen" and top["matched_skills"] == ["Python", "SQL", "React", "Docker"]
     assert top["breakdown"] == {"skills": 60.0, "gpa": 17.8, "internships": 13.3}
+
+
+def test_results_carry_the_pitch_title_and_caption(client, users, fake_storage):
+    """Responsibility 1 (issue #3): the ranked feed shows the same title and caption as the newest-first feed."""
+    recruiter = users["other_recruiter"]  # Siwakorn has the seeded demo filter
+    with Session(engine) as session:
+        top = session.exec(select(User).where(User.email == "mei@cato.test")).one()
+        session.add(Video(applicant_id=top.id, kind="pitch", file_location="v1_cato/users/x/pitch.mp4",
+                          duration_seconds=18, title="Why this field", description="What drew me to data."))
+        session.commit()
+
+    results = client.get("/api/matching/results?limit=50", headers=as_user(recruiter)).json()["results"]
+    mei = next(r for r in results if r["name"] == "Mei Chen")
+    assert mei["pitch_title"] == "Why this field"
+    assert mei["pitch_description"] == "What drew me to data."
+
+    without_pitch = next(r for r in results if r["pitch_url"] is None)
+    assert without_pitch["pitch_title"] is None and without_pitch["pitch_description"] is None
 
 
 def test_results_are_paginated(client, users, fake_storage):

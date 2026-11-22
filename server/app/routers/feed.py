@@ -1,13 +1,18 @@
 from fastapi import APIRouter, Depends, Query
-from sqlmodel import Session, select
+from sqlmodel import Session, col, func, select
 
 from app.database import get_session
-from app.models import User, Video
-from app.schemas.video import FeedItem
-from app.services.auth_service import get_current_user
+from app.models import ApplicantProfile, User, Video
+from app.schemas.video import ExploreCandidate, ExploreField, ExplorePage, FeedItem
+from app.services import storage_service
+from app.services.auth_service import get_current_recruiter, get_current_user
+from app.services.matching_service import split_skills
 from app.routers.videos import as_video_out
+from app.routers.profiles import RESUME_TYPE  # "raw": the Cloudinary resource type for PDFs
 
 router = APIRouter(tags=["feed"])
+
+EXPLORE_LIMIT = 5
 
 @router.get("", response_model=list[FeedItem])
 def get_feed(
@@ -46,5 +51,110 @@ def get_feed(
         video_out = as_video_out(video)
         feed_item = FeedItem(**video_out.model_dump(), name=name)
         feed_items.append(feed_item)
-    
+
     return feed_items
+
+
+# ---------- Explore candidates (recruiter side) ----------
+# A feed over every applicant who has a pitch, with no filters at all: the recruiter browses
+# instead of searching. Showing everyone at once would be unkind to the server, so the page
+# asks for a few candidates at a time and the row of fields of study narrows it.
+
+
+def _has_pitch():
+    """Applicant ids with an elevator pitch. The explore feed is built around the video, so a
+    candidate without one has nothing to show and is left out."""
+    return select(Video.applicant_id).where(Video.kind == "pitch")
+
+
+@router.get("/fields", response_model=list[ExploreField])
+def explore_fields(
+    user: User = Depends(get_current_recruiter),
+    session: Session = Depends(get_session),
+):
+    """The tabs for the explore page: every field of study that has a candidate, biggest first.
+
+    Counted from the profiles rather than the vocabulary, so a field nobody studies is not
+    offered as an empty tab.
+    """
+    rows = session.exec(
+        select(ApplicantProfile.field_of_study, func.count(col(ApplicantProfile.user_id)))
+        .where(col(ApplicantProfile.field_of_study).is_not(None))
+        .where(col(ApplicantProfile.user_id).in_(_has_pitch()))
+        .group_by(col(ApplicantProfile.field_of_study))
+    ).all()
+    rows = sorted(rows, key=lambda row: (-row[1], row[0]))
+    return [ExploreField(field_of_study=field, candidates=count) for field, count in rows]
+
+
+@router.get("/explore", response_model=ExplorePage)
+def explore_candidates(
+    field_of_study: str | None = Query(default=None, description="one tab; omit for every field"),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=EXPLORE_LIMIT, ge=1, le=20),
+    user: User = Depends(get_current_recruiter),
+    session: Session = Depends(get_session),
+):
+    """One page of candidates, newest pitch first, each with all of their videos.
+
+    The videos come with the candidate because the page swipes sideways through them: a second
+    request per card would make every swipe wait on the network.
+    """
+    # Newest pitch first, with the user id as a tiebreaker so paging never repeats or skips a
+    # candidate. A scalar subquery keeps the ordering out of the page's own GROUP BY.
+    newest_pitch = (
+        select(func.max(Video.created_at))
+        .where(col(Video.applicant_id) == col(User.id), Video.kind == "pitch")
+        .scalar_subquery()
+    )
+    found = (
+        select(User.id)
+        .join(ApplicantProfile, col(ApplicantProfile.user_id) == col(User.id))
+        .where(User.role == "applicant")
+        .where(col(User.id).in_(_has_pitch()))
+    )
+    if field_of_study:
+        found = found.where(ApplicantProfile.field_of_study == field_of_study)
+
+    total = session.exec(select(func.count()).select_from(found.subquery())).one()
+    ids = list(session.exec(found.order_by(newest_pitch.desc(), col(User.id).desc()).offset(offset).limit(limit)).all())
+    if not ids:
+        return ExplorePage(total=total, offset=offset, limit=limit, field_of_study=field_of_study, results=[])
+
+    profiles = session.exec(
+        select(User.id, User.name, ApplicantProfile)
+        .join(ApplicantProfile, col(ApplicantProfile.user_id) == col(User.id))
+        .where(col(User.id).in_(ids))
+    ).all()
+    by_id = {applicant_id: (name, profile) for applicant_id, name, profile in profiles}
+
+    videos = session.exec(
+        select(Video).where(col(Video.applicant_id).in_(ids)).order_by(col(Video.created_at).desc())
+    ).all()
+    clips: dict[int, list[Video]] = {}
+    for video in videos:
+        clips.setdefault(video.applicant_id, []).append(video)
+    # Already newest first; a stable sort on the kind lifts the pitch to the front and leaves
+    # the extras in that order, so swiping sideways starts on the elevator pitch.
+    for owned in clips.values():
+        owned.sort(key=lambda video: video.kind != "pitch")
+
+    results = []
+    for applicant_id in ids:  # the page keeps the order the database gave it
+        name, profile = by_id[applicant_id]
+        results.append(ExploreCandidate(
+            applicant_id=applicant_id,
+            name=name,
+            field_of_study=profile.field_of_study,
+            university=profile.university,
+            year=profile.year,
+            gpa=profile.gpa,
+            internships=profile.internships,
+            skills=split_skills(profile.skills),
+            videos=[as_video_out(video) for video in clips.get(applicant_id, [])],
+            resume_url=(storage_service.get_url(profile.resume_location, RESUME_TYPE)
+                        if profile.resume_location else None),
+            resume_name=profile.resume_name,
+            resume_size=profile.resume_size,
+        ))
+    return ExplorePage(total=total, offset=offset, limit=limit, field_of_study=field_of_study, results=results)

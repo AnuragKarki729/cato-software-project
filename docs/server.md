@@ -62,51 +62,64 @@ Missing/invalid/expired tokens return 401; the wrong role returns 403. `/auth/me
 |---|---|---|
 | `auth_service.py` | `get_current_user`, `get_current_applicant`, `get_current_recruiter` | ✅ bearer login and role checks |
 | `options_service.py` | Fixed lists: fields of study, skills, years | ✅ |
-| `storage_service.py` | `save`, `get_url`, `delete` for files → [uploads.md](uploads.md) | ✅ |
+| `storage_service.py` | `save`, `get_url`, `delete` for Cloudinary files; each takes `resource_type` (`"video"` or `"raw"`) | ✅ |
 | `matching_service.py` | `passes_hard_filters(profile, filter)`, `match_score(profile, filter)`, `split_skills(text)` | ✅ |
 | `invitation_service.py` | `build_message(recruiter, applicant)` | ✅ |
 
 ## Endpoints
 
-All paths start with `/api`. Try them at http://localhost:8000/docs.
-"501" means the endpoint exists but is not built yet.
+All paths start with `/api`. Try them at http://localhost:8000/docs, which lists exactly the routers
+that `main.py` mounts.
+
+Status, checked 2026-11-21 on `nusrat-begum/resp-2-5`:
+
+- **live** — mounted and working.
+- **not mounted** — the code is written but `main.py` does not include the router, so the path
+  answers 404.
+- **missing** — the router does not exist, so the path answers 404.
 
 | Method | Path | Who | Responsibility | Status |
 |---|---|---|---|---|
-| GET | `/health` | anyone | – | ✅ |
-| GET | `/options` | anyone | shared | ✅ |
-| POST | `/auth/logout` | logged in | 7 | ✅ |
-| POST | `/auth/signup` | anyone | 7 | ✅ |
-| POST | `/auth/login` | anyone | 7 | ✅ |
-| GET | `/auth/me` | logged in | 7 | ✅ |
-| GET | `/profiles/me` | applicant | 2 | ✅ |
-| PUT | `/profiles/me` | applicant | 2 | ✅ |
-| PUT | `/profiles/me/draft` | applicant | 2 | ✅ |
-| POST | `/profiles/me/resume` | applicant | 2 | ✅ |
-| DELETE | `/profiles/me/resume` | applicant | 2 | ✅ |
-| GET | `/profiles/{applicant_id}` | logged in (resume only for recruiters and the owner) | 2 | ✅ |
-| POST | `/videos` | applicant | 1 | 501 |
-| GET | `/videos/applicant/{applicant_id}` | logged in | 1 | 501 |
-| GET | `/videos/{video_id}` | logged in | 1 | 501 |
-| DELETE | `/videos/{video_id}` | applicant | 1 | 501 |
-| GET | `/feed?page=1` | logged in | 3 (optional) | 501 |
-| GET | `/filters/me` | recruiter | 4 | 501 |
-| PUT | `/filters/me` | recruiter | 4 | 501 |
-| GET | `/matching/results?offset=0&limit=5` | recruiter | 5 | ✅ |
-| GET | `/matching/results/{applicant_id}` | recruiter | 5 | ✅ |
-| GET | `/matching/preview` | recruiter | 5 | ✅ |
-| POST | `/invitations` | recruiter | 8 | 501 |
-| GET | `/invitations/received` | applicant | 8 | 501 |
-| GET | `/invitations/sent` | recruiter | 8 | 501 |
-| GET | `/saved/searches` | recruiter | 6 (optional) | ✅ |
-| POST | `/saved/searches` | recruiter | 6 (optional) | ✅ |
-| DELETE | `/saved/searches/{search_id}` | recruiter | 6 (optional) | ✅ |
-| GET | `/saved/bookmarks` | recruiter | 6 (optional) | ✅ |
-| POST | `/saved/bookmarks` | recruiter | 6 (optional) | ✅ |
-| DELETE | `/saved/bookmarks/{bookmark_id}` | recruiter | 6 (optional) | ✅ |
-| GET | `/files/{key}` | anyone | uploads | ✅ |
+| GET | `/health` (no `/api`) | anyone | – | live |
+| GET | `/options` | anyone | shared | live |
+| POST | `/auth/signup` | anyone | 7 | live |
+| POST | `/auth/login` | anyone | 7 | live |
+| GET | `/auth/me` | logged in | 7 | live |
+| POST | `/auth/logout` | logged in | 7 | live |
+| GET | `/profiles/me` | applicant | 2 | live |
+| PUT | `/profiles/me` | applicant | 2 | live |
+| PUT | `/profiles/me/draft` | applicant | 2 | live |
+| POST | `/profiles/me/resume` | applicant | 2 | live |
+| DELETE | `/profiles/me/resume` | applicant | 2 | live |
+| GET | `/profiles/{applicant_id}` | logged in (resume only for recruiters and the owner) | 2 | live |
+| POST | `/videos` | applicant | 1 | live |
+| GET | `/videos/applicant/{applicant_id}` | logged in | 1 | live |
+| GET | `/videos/{video_id}` | logged in | 1 | live |
+| DELETE | `/videos/{video_id}` | applicant | 1 | live |
+| GET | `/feed` | logged in | 3 (optional) | live |
+| GET | `/matching/results` | recruiter | 5 | live |
+| GET | `/matching/results/{applicant_id}` | recruiter | 5 | live |
+| GET | `/matching/preview` | recruiter | 5 | live |
+| GET | `/saved/searches` | recruiter | 6 (optional) | not mounted |
+| POST | `/saved/searches` | recruiter | 6 (optional) | not mounted |
+| DELETE | `/saved/searches/{search_id}` | recruiter | 6 (optional) | not mounted |
+| POST | `/saved/searches/{search_id}/run` | recruiter | 6 (optional) | not mounted |
+| GET | `/saved/current-filter` | recruiter | 6 (optional) | not mounted |
+| GET | `/saved/bookmarks` | recruiter | 6 (optional) | not mounted |
+| POST | `/saved/bookmarks` | recruiter | 6 (optional) | not mounted |
+| DELETE | `/saved/bookmarks/{bookmark_id}` | recruiter | 6 (optional) | not mounted |
+| GET | `/filters/me` | recruiter | 4 | missing |
+| PUT | `/filters/me` | recruiter | 4 | missing |
+| POST | `/invitations` | recruiter | 8 | missing |
+| GET | `/invitations/received` | applicant | 8 | missing |
+| GET | `/invitations/sent` | recruiter | 8 | missing |
 
-Each unbuilt endpoint has a `# TODO` comment describing what it should do.
+There is no `/api/files/{key}`. Files live in Cloudinary, and `storage_service.get_url(key,
+resource_type)` returns the URL the browser uses directly.
+
+Responsibility 6 becomes live by adding its `savedsearch` and `bookmark` models and including
+`saved.router` in `main.py`. Until then, the Saved and Invitations screens in the client fall back to
+sample data; see [client.md](client.md).
 
 ## Schemas
 
