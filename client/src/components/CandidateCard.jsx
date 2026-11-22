@@ -16,7 +16,7 @@ export default function CandidateCard({ result, suffix = '', actions, kind }) {
   return (
     <article className="rr-card" aria-label={`${result.rank ? `#${result.rank} ` : ''}${result.name}, match score ${score(result.match_score)}`}>
       <VideoPoster src={result.pitch_url} kind={kind || (result.rank ? `#${result.rank}` : 'Pitch')} seconds={result.pitch_duration}
-        name={result.name} label={`${result.name}'s pitch video`} emptyText="No pitch yet" />
+        name={result.name} label={`${result.name}'s pitch video`} emptyText="No pitch yet" preview />
       <div className="rr-card__info">
         {result.rank && <span className="rr-card__rank">#{result.rank} match</span>}
         <h2 className="rr-card__name"><Link to={profileLink}>{result.name}</Link></h2>

@@ -8,6 +8,7 @@ export function homeFor(user) {
   if (user.role === 'recruiter') return '/find';
   if (user.onboarding_step === 'profile') return '/onboarding/profile';
   if (user.onboarding_step === 'video') return '/onboarding/video';
+  if (user.onboarding_step === 'review') return '/onboarding/review';
   return '/profile';
 }
 

@@ -6,16 +6,18 @@
 // plug into the "Interested?" card.
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Bookmark, Briefcase, Check, Calendar, CircleAlert, ExternalLink, FileText, GraduationCap, Lock, Send, SlidersHorizontal, Star } from 'lucide-react';
+import { ArrowLeft, Bookmark, Check, ChevronLeft, ChevronRight, CircleAlert, Lock, Send, SlidersHorizontal } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import AppHeader from '../../components/AppHeader.jsx';
 import useCandidateActions from '../../components/useCandidateActions.jsx';
 import ResumeViewer from '../../components/ui/ResumeViewer.jsx';
+import { AboutCard, ResumeCard } from '../../components/ProfileCards.jsx';
 import VideoPoster from '../../components/ui/VideoPoster.jsx';
+import VideoViewer from '../../components/ui/VideoViewer.jsx';
 import { ScoreBreakdown } from '../../components/ui/MatchScore.jsx';
-import { Avatar, Badge, Button, Tag } from '../../components/ui/primitives.jsx';
-import { fileSize, firstName, gpaLabel, yearLabel } from '../../utils/format.js';
+import { Avatar, Badge, Button } from '../../components/ui/primitives.jsx';
+import { fileSize, firstName, yearLabel } from '../../utils/format.js';
 import { carry } from '../../utils/filters.js';
 
 const notFound = (err) => { if (err.status === 404) return null; throw err; };
@@ -26,12 +28,33 @@ export default function ApplicantProfile({ preview = false }) {
   const applicantId = preview ? user.id : Number(params.applicantId);
   const [searchParams] = useSearchParams();
   const suffix = carry(searchParams); // the search from Ranked results, if any
+  // Where the recruiter came from, and which card they were on when they left. Explore sends
+  // both, so Back goes to the feed rather than to a search they never ran, and the row opens
+  // on the card they were watching. A card key rather than an index, because the two pages
+  // order a candidate's videos from different endpoints.
+  const cameFromFeed = searchParams.get('from') === 'explore';
+  const startKey = searchParams.get('start') || '';
   const actions = useCandidateActions();
   const [profile, setProfile] = useState(undefined);
   const [videos, setVideos] = useState([]);
   const [match, setMatch] = useState(null);
   const [error, setError] = useState('');
   const [viewing, setViewing] = useState(false);
+  const [watching, setWatching] = useState(null); // index into `playlist`
+  const [middle, setMiddle] = useState(-1);       // -1 until moved: the start key decides
+  const [dir, setDir] = useState('none');        // which way the last move went
+  const [moves, setMoves] = useState(0);         // remounts the row so its animation re-runs
+  // Preview only: the applicant is looking at their own profile, so the About card is theirs
+  // to change. Editing happens in the card rather than on another page — the point of the
+  // preview is seeing what a recruiter sees, and being sent elsewhere to fix it loses that.
+  const [options, setOptions] = useState(null);  // the card falls back to its own defaults
+
+  useEffect(() => {
+    if (!preview) return undefined;
+    let active = true;
+    api.get('/options').then((opts) => { if (active) setOptions(opts); }).catch(() => {});
+    return () => { active = false; };
+  }, [preview]);
 
   useEffect(() => {
     let active = true;
@@ -44,13 +67,16 @@ export default function ApplicantProfile({ preview = false }) {
       setProfile(found);
       setVideos(list);
       setMatch(result);
+      setMiddle(-1);  // a new candidate's reel starts where the link asked, else the pitch
     }).catch((err) => { if (active) { setError(err.message); setProfile(null); } });
     return () => { active = false; };
   }, [applicantId, preview, suffix]);
 
   const back = preview
     ? <Button variant="ghost" size="sm" icon={ArrowLeft} to="/profile" className="cp-back">Back to My profile</Button>
-    : <Button variant="ghost" size="sm" icon={ArrowLeft} to={`/results${suffix}`} className="cp-back">Back to results</Button>;
+    : cameFromFeed
+      ? <Button variant="ghost" size="sm" icon={ArrowLeft} to="/explore" className="cp-back">Back to video feed</Button>
+      : <Button variant="ghost" size="sm" icon={ArrowLeft} to={`/results${suffix}`} className="cp-back">Back to results</Button>;
 
   if (profile === undefined || profile === null) {
     return (
@@ -68,19 +94,62 @@ export default function ApplicantProfile({ preview = false }) {
 
   const pitch = videos.find((v) => v.kind === 'pitch');
   const extras = videos.filter((v) => v.kind === 'extra').reverse();
-  const matched = new Set(match?.matched_skills || []);
-  const skills = [...(profile.skills || [])].sort((a, b) => matched.has(b) - matched.has(a));
-  const facts = [
-    { icon: GraduationCap, label: 'Field of study', value: profile.field_of_study || '—' },
-    { icon: Calendar, label: 'Year', value: yearLabel(profile.year) },
-    { icon: Star, label: 'GPA', value: profile.gpa == null ? '—' : `${gpaLabel(profile.gpa)} / 4.00` },
-    { icon: Briefcase, label: 'Internships', value: profile.internships ?? '—' },
+  // The viewer walks the pitch first, then the extras, in the order shown on the page.
+  const playlist = [...(pitch ? [pitch] : []), ...extras];
+
+  // Responsibility 1: one row holds everything there is to look at — the candidate's videos,
+  // then what their profile says, then their resume. Every card is the same size, the one in
+  // the middle is sharp and full size and its neighbours are scaled down and blurred. The page
+  // itself does not scroll: moving sideways replaces scrolling down through sections.
+  const slides = [
+    ...playlist.map((video) => ({ key: `v${video.id}`, kind: 'video', video, name: video.title })),
+    { key: 'about', kind: 'about', name: 'About' },
+    ...(profile.resume_url
+      ? [{ key: 'resume', kind: 'resume', name: profile.resume_name || 'Resume' }]
+      : []),
   ];
+  const count = slides.length;
+  // Until the recruiter moves the row themselves, it sits on the card the link named. An
+  // unknown or missing key falls back to the first card, which is the elevator pitch.
+  const asked = startKey ? slides.findIndex((slide) => slide.key === startKey) : -1;
+  const at = middle >= 0 ? Math.min(middle, count - 1) : Math.max(0, asked);
+  const here = slides[at];
+  // Circular, and the slide follows the gesture rather than the index: going on from the last
+  // card brings the first in from the right like any other step forward, never rewinding past
+  // everything in between. Only three cards are ever on screen, so the wrap costs nothing.
+  const step = (by) => {
+    if (count < 2) return;
+    setDir(by > 0 ? 'next' : 'back');
+    setMiddle(((at + by) % count + count) % count);
+    setMoves((m) => m + 1);
+  };
+  const cardBody = (slide, isMiddle) => {
+    if (slide.kind === 'video') {
+      return (
+        <VideoPoster size="lg" src={slide.video.url} name={profile.name}
+          kind={slide.video.kind === 'pitch' ? 'Pitch' : 'Extra'}
+          seconds={slide.video.duration_seconds}
+          label={slide.video.kind === 'pitch' ? `${profile.name}'s pitch video` : `${profile.name}: ${slide.video.title}`}
+          // Only the middle card previews under the cursor and opens the viewer.
+          preview={isMiddle} onPlay={isMiddle ? () => setWatching(at) : undefined} />
+      );
+    }
+    if (slide.kind === 'about') {
+      return (
+        <AboutCard profile={profile} match={match} options={options ?? undefined}
+          editable={preview} onSaved={setProfile} focusable={isMiddle} />
+      );
+    }
+    return <ResumeCard profile={profile} onOpen={() => setViewing(true)} focusable={isMiddle} />;
+  };
+
+  const before = count > 1 ? slides[(at - 1 + count) % count] : null;
+  const after = count > 1 ? slides[(at + 1) % count] : null;
 
   return (
-    <div className="ui-app">
+    <div className="ui-app cp-app">
       <AppHeader />
-      <main className="ui-main">
+      <main className="cp-main">
         {preview && (
           <div className="ui-alert ui-alert--info cp-preview">
             <span>This is how recruiters see your profile. Your email is not shown to them.</span>
@@ -101,51 +170,63 @@ export default function ApplicantProfile({ preview = false }) {
               </div>
             </div>
 
-            <VideoPoster size="lg" src={pitch?.url} kind="Pitch" seconds={pitch?.duration_seconds} name={profile.name}
-              label={`${profile.name}'s pitch video`} emptyText="No pitch video yet" />
+            <figure className="cp-reel">
+              <div className="cp-reel__viewport">
+                {/* Three cards, never more: the one in the middle and its two neighbours,
+                    picked with a wrap. The row is keyed on the move count so its slide
+                    animation re-runs, and data-dir says which way it came from. */}
+                <div className="cp-reel__row" key={moves} data-dir={count > 1 ? dir : 'none'}>
+                  {before && (
+                    <div className="cp-reel__card is-side is-before">
+                      {cardBody(before, false)}
+                      <button type="button" className="cp-reel__pick" onClick={() => step(-1)}
+                        aria-label={`Show ${before.name}`} />
+                    </div>
+                  )}
 
-            {extras.length > 0 && (
-              <section className="cp-more" aria-labelledby="more-title">
-                <h2 id="more-title" className="ui-h5">More videos ({extras.length})</h2>
-                <div className="cp-more__row">
-                  {extras.map((video, index) => (
-                    <VideoPoster key={video.id} src={video.url} kind="Extra" seconds={video.duration_seconds} name={profile.name}
-                      label={`${profile.name}'s extra video ${index + 1}`} />
-                  ))}
+                  <div className="cp-reel__card is-middle">{cardBody(here, true)}</div>
+
+                  {after && (
+                    <div className="cp-reel__card is-side is-after">
+                      {cardBody(after, false)}
+                      <button type="button" className="cp-reel__pick" onClick={() => step(1)}
+                        aria-label={`Show ${after.name}`} />
+                    </div>
+                  )}
                 </div>
-              </section>
-            )}
 
-            <section className="ui-card" aria-labelledby="about-title">
-              <h2 id="about-title" className="ui-h5">About</h2>
-              <div className="cp-facts">
-                {facts.map(({ icon: Icon, label, value }) => (
-                  <div className="cp-fact" key={label}>
-                    <span><Icon aria-hidden="true" />{label}</span>
-                    <strong title={String(value)}>{value}</strong>
-                  </div>
-                ))}
+                {count > 1 && (
+                  <>
+                    <button type="button" className="cp-reel__nav cp-reel__nav--prev"
+                      onClick={() => step(-1)} aria-label={`Show ${before.name}`}>
+                      <ChevronLeft aria-hidden="true" />
+                    </button>
+                    <button type="button" className="cp-reel__nav cp-reel__nav--next"
+                      onClick={() => step(1)} aria-label={`Show ${after.name}`}>
+                      <ChevronRight aria-hidden="true" />
+                    </button>
+                  </>
+                )}
               </div>
-              <div className="cp-skills">
-                <p>{match ? 'Skills (matches for your search in green)' : 'Skills'}</p>
-                {skills.length ? (
-                  <div className="ui-tags">{skills.map((skill) => <Tag key={skill} match={matched.has(skill)}>{skill}</Tag>)}</div>
-                ) : <p className="ui-text-muted">No skills listed.</p>}
-              </div>
-            </section>
 
-            <section className="ui-card cp-resume" aria-label="Resume">
-              <span className="ui-file__icon ui-file__icon--neutral"><FileText aria-hidden="true" /></span>
-              <span className="ui-file__text">
-                <span className="ui-file__name" style={{ cursor: 'default' }}>{profile.resume_url ? profile.resume_name || 'Resume.pdf' : 'No resume uploaded yet'}</span>
-                {profile.resume_url && <span className="ui-file__meta">PDF · {fileSize(profile.resume_size)} · opens in the Cato viewer</span>}
-              </span>
-              {profile.resume_url && (
-                <Button variant="secondary" size="sm" icon={ExternalLink} onClick={() => setViewing(true)} aria-label="Open PDF">
-                  <span>Open PDF</span>
-                </Button>
-              )}
-            </section>
+              <figcaption className="cp-reel__caption" aria-live="polite">
+                {here.kind === 'video' && <>
+                  <p><strong>{here.video.title}</strong></p>
+                  {here.video.description && <p className="ui-text-soft">{here.video.description}</p>}
+                </>}
+                {here.kind === 'about' && <>
+                  <p><strong>About {firstName(profile.name)}</strong></p>
+                  <p className="ui-text-soft">Field, year, GPA, internships and skills, as filled in.</p>
+                </>}
+                {here.kind === 'resume' && <>
+                  <p><strong>{profile.resume_name || 'Resume.pdf'}</strong></p>
+                  <p className="ui-text-soft">PDF · {fileSize(profile.resume_size)} · click the card to read it</p>
+                </>}
+                {slides.length > 1 && (
+                  <p className="ui-text-xs ui-text-muted">{at + 1} of {slides.length}</p>
+                )}
+              </figcaption>
+            </figure>
           </div>
 
           <aside className="cp-sidebar">
@@ -181,6 +262,21 @@ export default function ApplicantProfile({ preview = false }) {
         </div>
       </main>
       {viewing && <ResumeViewer url={profile.resume_url} name={profile.resume_name} onClose={() => setViewing(false)} />}
+      {watching !== null && playlist[watching] && (
+        // The viewer pages the same cards the row does, in the same order, so an index means
+        // the same thing in both. The resume asks for a wide frame: a resume read in a 9:16
+        // column is a resume nobody reads.
+        <VideoViewer videos={playlist} index={watching} onIndex={setWatching} onClose={() => setWatching(null)}
+          extra={[
+            { kind: 'sheet', key: 'about', title: `About ${firstName(profile.name)}`, wide: preview,
+              node: cardBody(slides.find((s) => s.kind === 'about'), true) },
+            ...(profile.resume_url ? [{
+              kind: 'sheet', key: 'resume', title: profile.resume_name || 'Resume.pdf', wide: true,
+              node: <iframe className="vv__pdf" src={`${profile.resume_url}#toolbar=0&navpanes=0&view=FitH`}
+                title={profile.resume_name || 'Resume'} />,
+            }] : []),
+          ]} />
+      )}
       {actions.ui}
     </div>
   );

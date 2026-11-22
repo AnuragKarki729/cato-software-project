@@ -7,6 +7,7 @@ import LogIn from './pages/public/LogIn.jsx'
 
 import OnboardingProfile from './pages/applicant/OnboardingProfile.jsx'
 import OnboardingVideo from './pages/applicant/OnboardingVideo.jsx'
+import OnboardingReview from './pages/applicant/OnboardingReview.jsx'
 import MyProfile from './pages/applicant/MyProfile.jsx'
 import Invitations from './pages/applicant/Invitations.jsx'
 import VideoFeed from './pages/applicant/VideoFeed.jsx'
@@ -14,6 +15,7 @@ import VideoFeed from './pages/applicant/VideoFeed.jsx'
 import OnboardingRecruiter from './pages/recruiter/OnboardingRecruiter.jsx'
 import FindCandidates from './pages/recruiter/FindCandidates.jsx'
 import RankedResults from './pages/recruiter/RankedResults.jsx'
+import ExploreCandidates from './pages/recruiter/ExploreCandidates.jsx'
 import ApplicantProfile from './pages/recruiter/ApplicantProfile.jsx'
 import SentInvitations from './pages/recruiter/SentInvitations.jsx'
 import Saved from './pages/recruiter/Saved.jsx'
@@ -49,24 +51,29 @@ function AppRoutes() {
       <Route element={<Protected role="applicant" />}>
         <Route path="/onboarding/profile" element={<OnboardingProfile />} />
         <Route path="/onboarding/video" element={<OnboardingVideo />} />
+        {/* Step 3: check the details read from the resume and pick a field of study */}
+        <Route path="/onboarding/review" element={<OnboardingReview />} />
+        {/* Responsibility 1: add an extra video later, from My profile */}
+        <Route path="/videos/add" element={<OnboardingVideo mode="extra" />} />
         <Route path="/profile" element={<MyProfile />} />
         {/* Responsibility 2: edit the profile, and see it the way recruiters do */}
         <Route path="/profile/edit" element={<OnboardingProfile editing />} />
         <Route path="/profile/preview" element={<ApplicantProfile preview />} />
         <Route path="/invitations" element={<Invitations />} />
+        {/* Responsibility 3: the applicant's feed of other people's pitches. Recruiters
+            have Explore instead, which pages through candidates rather than videos. */}
+        <Route path="/feed" element={<VideoFeed />} />
       </Route>
 
       <Route element={<Protected role="recruiter" />}>
         <Route path="/onboarding/recruiter" element={<OnboardingRecruiter />} />
         <Route path="/find" element={<FindCandidates />} />
         <Route path="/results" element={<RankedResults />} />
+        {/* Responsibility 3: browse every candidate with a pitch, no filters */}
+        <Route path="/explore" element={<ExploreCandidates />} />
         <Route path="/role/:applicantId/profile" element={<ApplicantProfile />} />
         <Route path="/sent-invitations" element={<SentInvitations />} />
         <Route path="/saved" element={<Saved />} />
-      </Route>
-
-      <Route element={<Protected />}>
-        <Route path="/feed" element={<VideoFeed />} />
       </Route>
 
       <Route path="*" element={<div className="container"><h1>Page not found</h1><a href="/">Back to Cato</a></div>} />

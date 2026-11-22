@@ -34,6 +34,11 @@
   --ui-radius-md: 6px;
   --ui-radius-lg: 8px;
   --ui-radius-xl: 12px;
+  /* How much room the bottom nav takes out of the window. Zero on a desktop, where there is
+     no bottom nav; set where the nav appears. A page that fills the window pads its bottom by
+     this, so nothing ends up behind the nav — and because it is a token rather than a number
+     copied into each page, the two cannot drift apart. */
+  --ui-tabbar-space: 0px;
   --ui-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
   --ui-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
   --ui-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
@@ -218,16 +223,46 @@ select.ui-control.is-empty { color: var(--ui-slate-500); }
 .ui-dialog__actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; }
 
 /* ---------- Video poster ---------- */
-.ui-poster { position: relative; overflow: hidden; background: var(--ui-slate-800); border-radius: var(--ui-radius-lg); flex-shrink: 0; }
-.ui-poster--sm { width: 160px; height: 90px; }
-.ui-poster--tile { width: 100%; height: 180px; border-radius: 0; }
-.ui-poster--lg { width: 100%; height: 360px; }
-.ui-poster video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: transparent; }
+/* Every video in Cato is portrait and the same shape everywhere: the pitch player, the
+   profile tiles, the recruiter's cards and the feed all use --ui-video-ratio. Only the
+   width is ever set; the height follows, so a video is scaled rather than reshaped.
+   object-fit is "contain" so the whole frame is always visible and nothing is cropped.
+   A portrait video fills its box exactly, with no bar anywhere. A landscape one is shown
+   whole, at full width, with empty space above and below it. Because the box is portrait,
+   there is never a bar down the SIDE of a video. */
+:root { --ui-video-ratio: 9 / 16; }  /* portrait, as TikTok and Reels use */
+
+.ui-poster { position: relative; overflow: hidden; background: var(--ui-slate-800); border-radius: var(--ui-radius-lg); flex-shrink: 0; aspect-ratio: var(--ui-video-ratio); }
+.ui-poster--sm { width: 110px; height: auto; }
+.ui-poster--tile { width: 100%; height: auto; border-radius: 0; }
+.ui-poster--lg { width: 100%; max-width: 300px; height: auto; }
+.ui-poster video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: transparent; }
 .ui-poster--lg video, .ui-poster--tile video, .ui-poster.is-playing video { object-fit: contain; }
+
+/* Hovering a preview poster lifts it and plays the opening of the video.
+   (hover: hover) and (pointer: fine) keep this to real pointers: on a phone or tablet the
+   browser reports a "hover" in the instant before a tap, so without this guard every tap
+   would trigger it. */
+@media (hover: hover) and (pointer: fine) {
+  .ui-poster--preview { transition: transform 180ms ease, box-shadow 180ms ease; }
+  .ui-poster--preview:hover { transform: scale(1.06); box-shadow: var(--ui-shadow-lg); z-index: 2; }
+  /* The dark scrim and play button step back while the preview runs. */
+  .ui-poster--preview.is-previewing .ui-poster__shade,
+  .ui-poster--preview.is-previewing .ui-poster__play { opacity: 0.35; transition: opacity 180ms ease; }
+  .ui-poster--preview.is-previewing .ui-poster__initials { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-poster--preview, .ui-poster--preview:hover { transition: none; transform: none; }
+}
 .ui-poster.is-playing { background: #000; }
 .ui-poster__initials { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); font-size: 30px; line-height: 36px; font-weight: 600; letter-spacing: -0.015em; color: var(--ui-slate-500); opacity: 0.6; }
 .ui-poster--sm .ui-poster__initials { display: none; }
 .ui-poster__shade { position: absolute; inset: 50% 0 0 0; background: linear-gradient(to bottom, rgba(2, 6, 23, 0), rgba(2, 6, 23, 0.7)); pointer-events: none; }
+/* Pressing anywhere on the poster plays it: this layer fills the poster and takes the click,
+   and .ui-poster__play inside it is the disc you see. A real button, so it is still reachable
+   by keyboard. The disc is left exactly as it was, because four other screens render it on
+   its own as decoration. */
+.ui-poster__hit { position: absolute; inset: 0; z-index: 1; border: 0; background: transparent; padding: 0; cursor: pointer; }
 .ui-poster__play {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   display: flex; align-items: center; justify-content: center; width: 48px; height: 48px;
@@ -285,11 +320,26 @@ select.ui-control.is-empty { color: var(--ui-slate-500); }
 .ui-file__meta { font-size: 12px; line-height: 16px; color: var(--ui-slate-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- Resume viewer ---------- */
-.ui-viewer { width: 760px; max-width: 100%; height: min(820px, 100%); display: flex; flex-direction: column; overflow: hidden; background: #fff; border-radius: var(--ui-radius-xl); box-shadow: var(--ui-shadow-lg); }
+/* Wide on purpose. An A4 page is 794px across at 100%, and the PDF is scaled to the width of
+   the frame, so a frame narrower than that renders the text below full size and the reader
+   has to zoom. 1000px less the body padding clears it. */
+.ui-viewer { width: 1000px; max-width: 100%; height: min(1000px, 100%); display: flex; flex-direction: column; overflow: hidden; background: #fff; border-radius: var(--ui-radius-xl); box-shadow: var(--ui-shadow-lg); }
 .ui-viewer__head { display: flex; align-items: center; gap: 12px; padding: 12px 20px; }
 .ui-viewer__head > svg { width: 20px; height: 20px; flex-shrink: 0; }
+/* Buttons a page puts in the head, such as save and invite while a resume is being read. */
+.ui-viewer__actions { display: flex; align-items: center; gap: 8px; flex: none; }
+/* The dialog grows out of the card that was clicked rather than appearing on top of it. */
+.ui-viewer { animation: ui-viewer-in 240ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+@keyframes ui-viewer-in { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .ui-viewer { animation: none; }
+}
 .ui-viewer__title { flex: 1; min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ui-viewer__body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 24px 40px; background: var(--ui-slate-100); }
+/* A circled cross in the corner: the one control in the dialog that must be unmistakable. */
+.ui-viewer__close { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: none; border: 0; border-radius: 50%; background: var(--ui-slate-100); color: var(--ui-slate-700); cursor: pointer; transition: background 140ms ease, color 140ms ease; }
+.ui-viewer__close:hover { background: var(--ui-slate-900); color: #fff; }
+.ui-viewer__close svg { width: 20px; height: 20px; }
+.ui-viewer__body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 8px 16px 12px; background: var(--ui-slate-100); }
 .ui-viewer__frame { flex: 1; width: 100%; min-height: 0; border: 1px solid var(--ui-slate-200); border-radius: var(--ui-radius-lg); background: #fff; }
 
 /* ---------- App header (Figma "Navbar") ---------- */
@@ -301,6 +351,10 @@ select.ui-control.is-empty { color: var(--ui-slate-500); }
 .ui-header__link.is-active { color: var(--ui-slate-900); border-bottom-color: var(--ui-emerald-500); }
 .ui-header__right { display: flex; align-items: center; gap: 12px; }
 .ui-header__person { display: flex; align-items: center; gap: 8px; padding: 0 4px; }
+/* A badge beside the bell: what the app may show other people, one tap away. */
+.ui-header__pdpa { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid var(--ui-slate-200); border-radius: 9999px; background: var(--ui-slate-50); color: var(--ui-slate-600); font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.02em; cursor: pointer; }
+.ui-header__pdpa:hover { background: var(--ui-slate-100); color: var(--ui-slate-900); }
+.ui-header__pdpa svg { width: 15px; height: 15px; flex: none; }
 .ui-header__name { display: flex; flex-direction: column; font-weight: 500; white-space: nowrap; }
 .ui-header__name span { font-size: 12px; line-height: 16px; font-weight: 400; color: var(--ui-slate-500); }
 .ui-header__menu { position: relative; display: none; }
@@ -313,22 +367,75 @@ select.ui-control.is-empty { color: var(--ui-slate-500); }
 .ui-tabbar { display: none; }
 
 @media (max-width: 767px) {
-  .ui-main { padding: 20px 16px 96px; gap: 20px; }
+  .ui-main { padding: 20px 16px calc(16px + var(--ui-tabbar-space)); gap: 20px; }
   .ui-h2 { font-size: 24px; line-height: 32px; }
   .ui-header { height: 56px; padding: 0 16px; }
   .ui-header__links, .ui-header__person, .ui-header__logout { display: none; }
+  .ui-header__pdpa { padding: 0; width: 36px; height: 36px; justify-content: center; }
+  .ui-header__pdpa span { display: none; }
   .ui-header__menu { display: block; }
+  /* 90px: 16px of float, 64px of nav (8px + 48px of content + 8px), and 10px of air above it. */
+  :root { --ui-tabbar-space: calc(90px + env(safe-area-inset-bottom)); }
+  /* A floating pill. The radius stays at 9999px rather than a measured 32px so it is always
+     exactly half the height, however the labels wrap.
+     The shadow is its own, not --ui-shadow-lg: that one is thrown 10px downwards and blurred
+     15px, so it reached 25px below a pill floating 10px off the bottom of the window and was
+     cut square by the edge — which read as the pill itself being clipped flat. This one has
+     almost no offset, so it sits evenly around the pill with nothing to cut, and there are
+     16px of clearance underneath for what is left. */
   .ui-tabbar {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
-    padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid var(--ui-slate-200);
+    /* 75% of the screen, centred. The floor is for a narrow phone: at 320px, 75% leaves
+       73px per item and the longest label needs 74px, so it would clip. Centred with a
+       transform rather than left/right insets, because with both insets set a min-width is
+       over-constrained and the box grows off the right edge instead of staying centred. */
+    position: fixed; left: 50%; transform: translateX(-50%);
+    width: 75%; min-width: min(280px, calc(100% - 24px));
+    bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 40;
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+    padding: 8px 10px; border-radius: 9999px;
+    /* Translucent so the video carries on behind it. The transparency is in the background
+       colour, never `opacity`, which would fade the icons and labels with it — they stay
+       fully opaque. The blur is what keeps them readable: without it the moving picture
+       underneath shows straight through the text. */
+    background: rgba(255, 255, 255, 0.78);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 1px 14px rgba(2, 6, 23, 0.18);
   }
-  .ui-tabbar a { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; line-height: 16px; color: var(--ui-slate-500); }
-  .ui-tabbar a span { display: flex; align-items: center; justify-content: center; width: 48px; height: 28px; border-radius: 9999px; }
+  /* nowrap matters: a label that wrapped would make the pill 80px tall and put
+     --ui-tabbar-space, which every full-height page pads by, 16px out. */
+  .ui-tabbar a { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; font-size: 12px; line-height: 16px; font-weight: 500; white-space: nowrap; color: var(--ui-slate-600); }
+  .ui-tabbar a span { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 48px; height: 28px; border-radius: 9999px; }
   .ui-tabbar a svg { width: 20px; height: 20px; }
   .ui-tabbar a.is-active { color: var(--ui-emerald-700); }
   .ui-tabbar a.is-active span { background: var(--ui-emerald-50); }
-  .ui-toast { right: 16px; bottom: 88px; }
+  .ui-toast { right: 16px; bottom: calc(8px + var(--ui-tabbar-space)); }
   .ui-viewer__body { padding: 16px; }
+}
+
+/* The resume viewer takes the whole phone screen: a resume is the one thing in the app that
+   is read rather than glanced at, and a multi-page one needs the room to scroll. The scrim's
+   inset is removed for this dialog only, so every other dialog keeps its margin, and Close
+   becomes a full-size button rather than a small one, because on a phone it is the only way
+   out that is always in reach. */
+@media (max-width: 760px) {
+  .ui-scrim:has(.ui-viewer) { padding: 0; }
+  .ui-viewer { width: 100%; max-width: 100%; height: 100%; border-radius: 0; }
+  .ui-viewer__head { gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--ui-slate-200); }
+  .ui-viewer__head .ui-btn { height: 44px; padding: 0 16px; font-size: 14px; line-height: 20px; font-weight: 600; }
+  .ui-viewer__close { width: 44px; height: 44px; }
+  .ui-viewer__close svg { width: 24px; height: 24px; }
+  .ui-viewer__head .ui-icon-btn { width: 44px; height: 44px; }
+  .ui-viewer__head { flex-wrap: wrap; }
+  .ui-viewer__title { flex: 1 1 100%; order: -1; }
+  /* Natural width, not stretched across the row: a single "Replace resume" filling the head
+     reads as the main thing to do, when the main thing is reading the resume. */
+  .ui-viewer__actions { flex: none; }
+  .ui-viewer__body { padding: 0; gap: 0; }
+  .ui-viewer__frame { border: 0; border-radius: 0; }
+  /* The privacy line is in the way of the page on a small screen; the head carries it. */
+  .ui-viewer__body > .ui-text-xs { display: none; }
 }
 
 /* ---------- Input with a leading icon, checkbox ---------- */
@@ -354,3 +461,48 @@ select.ui-control.is-empty { color: var(--ui-slate-500); }
 .iv-dialog__message { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid var(--ui-slate-200); border-radius: var(--ui-radius-lg); background: var(--ui-slate-50); }
 .iv-dialog .ui-dialog__actions { margin-top: 0; }
 .ui-icon-btn.is-on svg { fill: currentColor; }
+
+
+/* One card sliding in to replace another, used by the video viewer and the ranked feed.
+   Shared so a scroll on a desktop and a swipe on a phone look the same in both places. */
+/* next/previous move down the list; forward/back move sideways within one card (Explore). */
+.pager-slide { animation: pager-next 300ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+.pager-slide[data-direction='previous'] { animation-name: pager-previous; }
+.pager-slide[data-direction='forward'] { animation-name: pager-forward; }
+.pager-slide[data-direction='back'] { animation-name: pager-back; }
+.pager-slide[data-direction='none'] { animation: pager-fade 180ms ease; }
+@keyframes pager-next { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes pager-previous { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+@keyframes pager-forward { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes pager-back { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes pager-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .pager-slide,
+  .pager-slide[data-direction='previous'],
+  .pager-slide[data-direction='forward'],
+  .pager-slide[data-direction='back'] { animation: pager-fade 1ms linear; }
+}
+
+/* ---------- Carousel: a row that slides sideways (Responsibilities 1 and 3) ---------- */
+/* For lists with no upper bound — a candidate's skills, the fields of study on Explore —
+   so they never wrap into a second row and push a card out of shape. */
+.cr { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.cr__track { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; scrollbar-width: none; -ms-overflow-style: none; }
+.cr__track::-webkit-scrollbar { display: none; }
+.cr__track > * { flex: none; }
+.cr__arrow { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; flex: none; padding: 0; border: 0; border-radius: 50%; background: var(--ui-slate-100); color: var(--ui-slate-700); cursor: pointer; }
+.cr__arrow:hover:not(:disabled) { background: var(--ui-slate-200); }
+.cr__arrow svg { width: 14px; height: 14px; }
+/* Kept in the layout when there is nothing that way, so the row does not jump as it moves. */
+.cr__arrow.is-off { visibility: hidden; pointer-events: none; }
+
+/* Batched: each page is the full width of the row and wraps inside it, so everything on the
+   page is visible at once and nothing is hidden behind a scroll. Snapping makes a chevron or
+   a swipe land on exactly one page. With a single page there is nothing to scroll, so the
+   component measures no overflow and both chevrons stay hidden. */
+.cr--batched .cr__track { scroll-snap-type: x mandatory; }
+.cr__batch { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; flex: 0 0 100%; scroll-snap-align: start; }
+.cr__batch > * { flex: none; }
+/* A thumb drags the row, so the chevrons are for a mouse only. */
+@media (hover: none) { .cr__arrow { display: none; } }
+@media (prefers-reduced-motion: reduce) { .cr__track { scroll-behavior: auto; } }

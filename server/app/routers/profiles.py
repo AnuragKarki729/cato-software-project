@@ -9,18 +9,21 @@ POST   /api/profiles/me/resume   upload the resume (PDF only, up to 5 MB)
 DELETE /api/profiles/me/resume   remove the resume
 GET    /api/profiles/{id}        read-only profile (recruiters, the video feed, "Preview as recruiter")
 """
+import logging
 import re
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from sqlmodel import Session, select
 
-from app.database import get_session
+from app.database import engine, get_session
 from app.models import ApplicantProfile, User
 from app.models.applicant_profile import utcnow
 from app.schemas.profile import ProfileDraftIn, ProfileIn, ProfileOut
-from app.services import storage_service
+from app.services import resume_ai_service, storage_service, vocabulary_service
 from app.services.auth_service import get_current_applicant, get_current_user
 from app.services.matching_service import split_skills
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
 
@@ -42,6 +45,7 @@ def profile_out(profile: ApplicantProfile, user: User) -> ProfileOut:
         resume_name=profile.resume_name,
         resume_size=profile.resume_size,
         resume_uploaded_at=profile.resume_uploaded_at,
+        parse_status=profile.parse_status,
         details_complete=profile.details_complete,
         onboarding_complete=profile.onboarding_complete,
         updated_at=profile.updated_at,
@@ -58,12 +62,19 @@ def get_or_create_profile(session: Session, user_id: int) -> ApplicantProfile:
     return find_profile(session, user_id) or ApplicantProfile(user_id=user_id)
 
 
-def apply_fields(profile: ApplicantProfile, body: ProfileDraftIn) -> None:
-    profile.university = body.university
-    profile.field_of_study = body.field_of_study
+def apply_fields(profile: ApplicantProfile, body: ProfileDraftIn, session: Session) -> None:
+    # University and field of study resolve through the growing vocabulary, so the profile
+    # always stores the canonical spelling. Matching can then keep comparing exact strings,
+    # and a new spelling of a term we already know does not become a second entry.
+    profile.university = vocabulary_service.resolve(session, vocabulary_service.UNIVERSITY, body.university)
+    profile.field_of_study = vocabulary_service.resolve(
+        session, vocabulary_service.FIELD_OF_STUDY, body.field_of_study)
     profile.year = body.year
     profile.gpa = body.gpa
-    profile.skills = ",".join(body.skills)
+    # Each skill resolves through the vocabulary too, so matching keeps comparing exact
+    # strings and a new spelling of a known skill does not become a second entry.
+    resolved = [vocabulary_service.resolve(session, vocabulary_service.SKILL, s) for s in body.skills]
+    profile.skills = ",".join([s for s in resolved if s])
     profile.internships = body.internships
     profile.updated_at = utcnow()
 
@@ -87,7 +98,7 @@ def get_my_profile(user: User = Depends(get_current_applicant), session: Session
 @router.put("/me", response_model=ProfileOut)
 def save_my_profile(body: ProfileIn, user: User = Depends(get_current_applicant), session: Session = Depends(get_session)):
     profile = get_or_create_profile(session, user.id)
-    apply_fields(profile, body)
+    apply_fields(profile, body, session)
     session.add(profile)
     session.commit()
     session.refresh(profile)
@@ -97,15 +108,71 @@ def save_my_profile(body: ProfileIn, user: User = Depends(get_current_applicant)
 @router.put("/me/draft", response_model=ProfileOut)
 def save_my_draft(body: ProfileDraftIn, user: User = Depends(get_current_applicant), session: Session = Depends(get_session)):
     profile = get_or_create_profile(session, user.id)
-    apply_fields(profile, body)
+    apply_fields(profile, body, session)
     session.add(profile)
     session.commit()
     session.refresh(profile)
     return profile_out(profile, user)
 
 
+async def fill_from_resume(user_id: int, pdf_bytes: bytes) -> None:
+    """Read the resume with an LLM and fill in whatever the applicant has left blank.
+
+    Runs in the background after the upload returns, so nothing in the UI waits on it. Only
+    empty fields are written: anything the applicant has already typed wins, and
+    field_of_study is never touched because they always choose that themselves.
+    """
+    def finish(status: str, values: dict | None = None) -> None:
+        with Session(engine) as session:
+            profile = find_profile(session, user_id)
+            if profile is None:
+                return
+            values = dict(values or {})
+            # A university read off a resume joins the vocabulary like any other, so the
+            # dropdown can show it and the next applicant from there picks the same spelling.
+            if values.get("university"):
+                values["university"] = vocabulary_service.resolve(
+                    session, vocabulary_service.UNIVERSITY, values["university"])
+            # Skills read off a resume join the vocabulary as well, so a recruiter can filter
+            # on them and the next applicant picks the same spelling from the list.
+            if values.get("skills"):
+                resolved = [vocabulary_service.resolve(session, vocabulary_service.SKILL, s)
+                            for s in values["skills"].split(",")]
+                values["skills"] = ",".join([s for s in resolved if s])
+            def blank(value) -> bool:
+                # 0 internships and a 0.0 GPA are real answers, so only None and emptiness count.
+                return value is None or value == "" or value == []
+
+            for field, value in values.items():
+                if blank(value) or not blank(getattr(profile, field, None)):
+                    continue  # never write over something the applicant has already given
+                setattr(profile, field, value)
+            profile.parse_status = status
+            profile.updated_at = utcnow()
+            session.add(profile)
+            session.commit()
+
+    try:
+        text = resume_ai_service.extract_text(pdf_bytes)
+        if not text:
+            # A scan with no text layer is normal, not a failure of ours.
+            finish("failed")
+            return
+        fields = await resume_ai_service.ask_model(text)
+    except Exception as err:  # noqa: BLE001 - a failed parse must never break onboarding
+        log.warning("resume parsing failed for user %s: %s", user_id, err)
+        finish("failed")
+        return
+
+    skills = fields.pop("skills", [])
+    if skills:
+        fields["skills"] = ",".join(skills)
+    finish("done", fields)
+
+
 @router.post("/me/resume", response_model=ProfileOut, status_code=201)
-def upload_resume(file: UploadFile = File(...), user: User = Depends(get_current_applicant),
+def upload_resume(background: BackgroundTasks, file: UploadFile = File(...),
+                  user: User = Depends(get_current_applicant),
                   session: Session = Depends(get_session)):
     name = clean_filename(file.filename)
     if file.content_type not in {"application/pdf", "application/x-pdf"} and not (file.filename or "").lower().endswith(".pdf"):
@@ -116,13 +183,16 @@ def upload_resume(file: UploadFile = File(...), user: User = Depends(get_current
     if not data.startswith(b"%PDF-"):
         raise HTTPException(status_code=422, detail="That file is not a valid PDF")
 
-    key = storage_service.save(data, f"v1_cato/users/{user.id}/resume", "pdf", resource_type=RESUME_TYPE)
+    # Folder comes from the email, not the database id, so it survives a database wipe.
+    key = storage_service.save(data, f"{storage_service.user_folder(user.email)}/resume", "pdf",
+                               resource_type=RESUME_TYPE)
     profile = get_or_create_profile(session, user.id)
     old_key = profile.resume_location
     profile.resume_location = key
     profile.resume_name = name
     profile.resume_size = len(data)
     profile.resume_uploaded_at = utcnow()
+    profile.parse_status = "pending"
     profile.updated_at = utcnow()
     session.add(profile)
     session.commit()
@@ -132,6 +202,9 @@ def upload_resume(file: UploadFile = File(...), user: User = Depends(get_current
             storage_service.delete(old_key, RESUME_TYPE)
         except Exception:
             pass  # the new resume is saved; a leftover old file is harmless
+    # Read the resume after the response has gone out: the applicant moves straight on to the
+    # video step and the fields are waiting for them when they come back.
+    background.add_task(fill_from_resume, user.id, data)
     return profile_out(profile, user)
 
 

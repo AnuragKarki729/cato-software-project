@@ -85,6 +85,8 @@ def to_result(profile: ApplicantProfile, recruiter_filter: RecruiterFilter, rank
         meets_requirements=rank is not None,
         pitch_url=storage_service.get_url(pitch.file_location) if pitch else None,
         pitch_duration=pitch.duration_seconds if pitch else None,
+        pitch_title=pitch.title if pitch else None,
+        pitch_description=pitch.description if pitch else None,
     )
 
 

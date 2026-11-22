@@ -15,13 +15,23 @@ router = APIRouter(prefix='/auth', tags=['auth'])
 def public_user(user, session):
     result = UserOut.model_validate(user)
     if user.role == 'applicant':
-        # Onboarding: profile and resume first (Responsibility 2), then the pitch (Responsibility 1).
+        # Onboarding is three steps: upload the resume, record the pitch, then check the
+        # details the resume was read into and pick a field of study.
+        #   profile  no resume yet
+        #   video    resume uploaded, no pitch yet
+        #   review   pitch recorded, but the details are still incomplete. field_of_study is
+        #            never parsed from the resume, so this step always has something to do.
+        #   complete everything matching needs is filled in
         profile = session.exec(select(ApplicantProfile).where(ApplicantProfile.user_id == user.id)).first()
         pitch = session.exec(select(Video).where(Video.applicant_id == user.id, Video.kind == 'pitch')).first()
-        if profile is None or not profile.onboarding_complete:
+        if profile is None or profile.resume_location is None:
             result.onboarding_step = 'profile'
+        elif not pitch:
+            result.onboarding_step = 'video'
+        elif not profile.details_complete:
+            result.onboarding_step = 'review'
         else:
-            result.onboarding_step = 'video' if not pitch else 'complete'
+            result.onboarding_step = 'complete'
     return result
 
 
