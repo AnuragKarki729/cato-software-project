@@ -1,5 +1,6 @@
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, homeFor, useAuth } from './context/AuthContext.jsx'
+import usePageTitle from './components/usePageTitle.jsx'
 
 import Landing from './pages/public/Landing.jsx'
 import SignUp from './pages/public/SignUp.jsx'
@@ -11,6 +12,7 @@ import OnboardingReview from './pages/applicant/OnboardingReview.jsx'
 import MyProfile from './pages/applicant/MyProfile.jsx'
 import Invitations from './pages/applicant/Invitations.jsx'
 import VideoFeed from './pages/applicant/VideoFeed.jsx'
+import Settings from './pages/applicant/Settings.jsx'
 
 import OnboardingRecruiter from './pages/recruiter/OnboardingRecruiter.jsx'
 import FindCandidates from './pages/recruiter/FindCandidates.jsx'
@@ -40,6 +42,8 @@ function GuestOnly({ children }) {
 
 function AppRoutes() {
   const { loading } = useAuth()
+  // Named here, once, so the tab says which page and whose view it is on every route.
+  usePageTitle()
   if (loading) return <p className="container muted" role="status">Loading your session…</p>
 
   return (
@@ -63,6 +67,8 @@ function AppRoutes() {
         {/* Responsibility 3: the applicant's feed of other people's pitches. Recruiters
             have Explore instead, which pages through candidates rather than videos. */}
         <Route path="/feed" element={<VideoFeed />} />
+        {/* Responsibility 2 (issue #5): hide my profile, and block companies */}
+        <Route path="/settings" element={<Settings />} />
       </Route>
 
       <Route element={<Protected role="recruiter" />}>

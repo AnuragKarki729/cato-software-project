@@ -67,10 +67,20 @@ def test_every_fixed_title_is_accepted(client, users, storage):
         assert upload(client, users["applicant"], title=title).json()["title"] == title
 
 
-def test_a_title_outside_the_fixed_list_is_refused(client, users, storage):
+def test_an_applicant_may_write_their_own_title(client, users, storage):
+    """Issue #3: the three structured titles are the questions a recruiter wants answered, but
+    a "Free topic" video is the applicant's own, so their own wording is allowed there. Only
+    the length is checked — this used to be refused against the fixed list."""
     response = upload(client, users["applicant"], title="My holiday")
+    assert response.status_code == 200
+    assert response.json()["title"] == "My holiday"
+
+
+def test_a_title_longer_than_the_limit_is_refused(client, users, storage):
+    from app.config import MAX_VIDEO_TITLE
+    response = upload(client, users["applicant"], title="x" * (MAX_VIDEO_TITLE + 1))
     assert response.status_code == 422
-    assert "About me" in response.json()["detail"]
+    assert str(MAX_VIDEO_TITLE) in response.json()["detail"]
 
 
 def test_videos_may_run_up_to_the_maximum(client, users, storage):

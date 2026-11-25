@@ -19,7 +19,7 @@ import { api } from '../../api.js';
 import AppHeader from '../../components/AppHeader.jsx';
 import useCandidateActions from '../../components/useCandidateActions.jsx';
 import useReveal from '../../components/useReveal.jsx';
-import { useGridPager, useSmallScreen } from '../../components/useVerticalPager.jsx';
+import { useGridPager, useSmallScreen, useTouchScreen } from '../../components/useVerticalPager.jsx';
 import Carousel from '../../components/ui/Carousel.jsx';
 import ResumeViewer from '../../components/ui/ResumeViewer.jsx';
 import { Button, IconButton, Tag } from '../../components/ui/primitives.jsx';
@@ -88,6 +88,7 @@ const SKILL_BATCH = 10;
 export default function ExploreCandidates() {
   const actions = useCandidateActions();
   const small = useSmallScreen();
+  const touch = useTouchScreen();
 
   const [fields, setFields] = useState([]);
   const [field, setField] = useState(ALL);
@@ -192,7 +193,7 @@ export default function ExploreCandidates() {
     if (!element) return;
     // On a desktop the clip in the feed has its own controls; beside the resume it is a
     // thumbnail without them, so there a click works it on a desktop too.
-    if (!small && !onResume) return;
+    if (!touch && !onResume) return;
     if (element.paused) element.play().catch(() => {});
     else element.pause();
   }
@@ -331,10 +332,10 @@ export default function ExploreCandidates() {
                         <div className="ex-clip">
                           <div className="ex-video pager-slide" key={`${current.applicant_id}-${clip.id}`} data-direction={pager.slide}>
                             <video ref={player} src={clip.url} playsInline
-                              controls={!small && !onResume} loop={small}
+                              controls={!touch && !onResume} loop={touch}
                               onClick={tapVideo} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
                               aria-label={`${current.name}: ${clip.title}`} />
-                            {(small || onResume) && (
+                            {(touch || onResume) && (
                               // The icon follows the element, not the details flag: beside the
                               // resume the clip is stopped without the details being up.
                               <button type="button" className="ex-tap" onClick={tapVideo}

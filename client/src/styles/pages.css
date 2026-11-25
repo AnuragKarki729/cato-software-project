@@ -282,7 +282,9 @@
 .cp-edit__skills { gap: clamp(3px, 2cqw, 6px); }
 .cp-edit__actions { display: flex; align-items: center; gap: clamp(4px, 2.6cqw, 10px); margin-top: auto; }
 /* Two columns in the dialog, where there is room for them side by side. */
-.vv__sheet .cp-sheet--edit { padding: 58px 20px 20px; display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 12px 16px; }
+/* Even padding all round: the 58px top was there to duck under the title bar, which is a row
+   above the sheet now rather than an overlay. */
+.vv__sheet .cp-sheet--edit { padding: 20px; display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 12px 16px; }
 .vv__sheet .cp-sheet--edit > .ui-score__label,
 .vv__sheet .cp-sheet--edit > .cp-skills,
 .vv__sheet .cp-sheet--edit > .cp-edit__actions,
@@ -465,82 +467,6 @@
   .sv-search__text { flex-basis: calc(100% - 56px); }
   .sv-search__meta { order: 3; flex: 1; }
 }
-
-/* ---------- P11 · Video feed ---------- */
-/* The page is the height of the window and never scrolls: a wheel or a swipe moves to the
-   next pitch. The rails beside the video scroll on their own if they have to, so the video
-   itself keeps its place. */
-/* min-height is reset because .ui-app asks for 100vh, which is taller than 100dvh on a
-   phone and would put the whole page back on a scrollbar. */
-.vf-app { height: 100dvh; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
-/* The middle column is 1fr, not auto. The card takes its width from its height through
-   aspect-ratio, so an auto column has no intrinsic width to measure and collapses, which
-   squeezes the video sideways. 1fr gives the column the leftover space instead. */
-.vf-main { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr) 320px; align-items: stretch; gap: 24px; padding: 16px 24px calc(20px + var(--ui-tabbar-space)); }
-.vf-side { display: flex; flex-direction: column; gap: 16px; min-height: 0; overflow-y: auto; }
-.vf-key { display: flex; align-items: center; gap: 12px; }
-.vf-key kbd { min-width: 24px; padding: 2px 8px; border: 1px solid var(--ui-slate-200); border-radius: var(--ui-radius-sm); background: var(--ui-slate-50); font-family: var(--ui-font); font-size: 12px; line-height: 16px; font-weight: 500; text-align: center; }
-.vf-stage { display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 0; }
-/* Always in the layout, invisible when there is nowhere to go, so the video never shifts. */
-.vf-nav { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: none; border: 0; border-radius: 50%; background: var(--ui-slate-100); color: var(--ui-slate-700); cursor: pointer; transition: background 140ms ease; }
-.vf-nav:hover { background: var(--ui-slate-200); }
-.vf-nav svg { width: 20px; height: 20px; }
-.vf-nav.is-off { visibility: hidden; pointer-events: none; }
-.vf-viewport { position: relative; flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.vf-error { position: absolute; top: 0; left: 0; right: 0; z-index: 4; }
-.vf-count { flex: none; font-size: 12px; line-height: 16px; color: var(--ui-slate-500); }
-.vf-card { position: relative; height: 100%; width: auto; max-width: 100%; aspect-ratio: var(--ui-video-ratio); overflow: hidden; flex: none; border-radius: 16px; background: var(--ui-slate-800); box-shadow: var(--ui-shadow-lg); color: #fff; }
-.vf-card--empty { color: var(--ui-slate-900); background: #fff; justify-content: center; }
-.vf-card video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: transparent; cursor: pointer; }
-.vf-card__initials { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); font-size: 96px; line-height: 1; font-weight: 600; color: #334155; }
-.vf-card__shade { position: absolute; left: 0; right: 0; bottom: 0; height: 360px; background: linear-gradient(to bottom, rgba(2, 6, 23, 0), rgba(2, 6, 23, 0.92)); pointer-events: none; }
-.vf-card__play { width: 64px; height: 64px; }
-.vf-card__play svg { width: 27px; height: 27px; }
-.vf-card__top { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 16px; pointer-events: none; }
-/* The video's title, centred at the top, and its caption above the actions (Responsibility 1). */
-.vf-card__title {
-  position: absolute; left: 50%; transform: translateX(-50%); max-width: 56%;
-  padding: 4px 12px; border-radius: 9999px; background: rgba(2, 6, 23, 0.55);
-  color: #fff; font-size: 12px; line-height: 16px; font-weight: 500; text-align: center;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.vf-card__details { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 10px; padding: 20px; }
-/* The skills keep the pill look they have on the landing page, in a row that slides. */
-.vf-card__skills .cr__track > span { padding: 2px 8px; border-radius: var(--ui-radius-md); background: rgba(255, 255, 255, 0.15); font-size: 12px; line-height: 16px; font-weight: 500; }
-.vf-card__skills .cr__arrow { background: rgba(255, 255, 255, 0.18); color: #fff; }
-.vf-card__caption { font-size: 14px; line-height: 20px; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
-.vf-next-list { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; }
-.vf-next-item { display: flex; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--ui-slate-200); border-radius: var(--ui-radius-xl); background: #fff; text-align: left; cursor: pointer; color: inherit; }
-.vf-next-item:hover { border-color: var(--ui-slate-300); box-shadow: var(--ui-shadow-xs); }
-.vf-next-item__poster { width: 64px; height: auto; }
-.vf-next-item__poster .ui-poster__play { width: 32px; height: 32px; }
-.vf-next-item__poster .ui-poster__play svg { width: 13px; height: 13px; }
-.vf-next-item__poster video { object-fit: contain; }
-.vf-next-item__text { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; min-width: 0; }
-.vf-next-item__text .lp-pill { margin-top: 4px; }
-
-@media (max-width: 1100px) {
-  .vf-main { grid-template-columns: minmax(0, 1fr) 280px; }
-  .vf-side { display: none; }
-}
-/* 760px to match useSmallScreen in the pager: below it the page behaves as a phone does. */
-@media (max-width: 760px) {
-  .vf-main { grid-template-columns: 1fr; gap: 0; padding: 8px 8px 6px; }
-  .vf-next-list { display: none; }
-  .vf-nav { display: none; }           /* the thumb does this; chevrons are for a mouse */
-  .vf-count { display: none; }
-  /* Full bleed, and the text over it scaled down so nothing has to scroll inside the card. */
-  .vf-card { height: 100%; width: 100%; aspect-ratio: auto; border-radius: 12px; }
-  .vf-card__details { gap: 6px; padding: 14px 14px var(--ui-tabbar-space); }
-  .vf-card__details .lp-feed__name { font-size: 16px; line-height: 22px; }
-  .vf-card__details .lp-feed__meta { font-size: 12px; line-height: 16px; }
-  .vf-card__caption { font-size: 13px; line-height: 18px; -webkit-line-clamp: 2; }
-  .vf-card__shade { height: 240px; }
-  .vf-card__initials { font-size: 64px; }
-  .vf-card__details .ui-btn { height: 34px; padding: 0 12px; font-size: 13px; }
-  .vf-card__details .ui-icon-btn--md { width: 34px; height: 34px; }
-}
-
 /* ---------- Explore candidates (Responsibility 3) ---------- */
 /* Same rules as the other video pages: the page is the height of the window, the video keeps
    its place, and gestures move the cards. Two axes here — down the candidates, and sideways
@@ -565,11 +491,16 @@
 /* Absolutely positioned, so the video has a definite height to take its 9:16 width from. */
 .ex-viewport { position: relative; flex: 1; min-height: 0; width: 100%; overflow: hidden; }
 .ex-row { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 24px; }
-.ex-column { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; min-width: 0; }
+/* `flex: 0 1 auto`, not `flex: none`: the clip is sized off its height and the 9:16 ratio, so
+   on a tall window its natural width can beat the row. Unable to shrink, the column kept that
+   natural width and spilled over the panel beside it — the same trap the ranked feed was in. */
+.ex-column { flex: 0 1 auto; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; min-width: 0; }
 /* A definite height, not flex: 1 — the clip inside takes its width from its height through
    aspect-ratio, and that only works while the height is definite the whole way down.
    84px is the two chevrons (36px each) and the two 6px gaps around the frame. */
-.ex-frame { height: calc(100% - 84px); display: flex; align-items: center; gap: 8px; }
+/* `min-width: 0` is what lets the clip's own `max-width: 100%` bite; without it the chain
+   refuses to shrink below the clip's natural width and overflows instead. */
+.ex-frame { height: calc(100% - 84px); display: flex; align-items: center; gap: 8px; min-width: 0; }
 
 .ex-nav { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: none; border: 0; border-radius: 50%; background: var(--ui-slate-100); color: var(--ui-slate-700); cursor: pointer; transition: background 140ms ease; }
 .ex-nav:hover { background: var(--ui-slate-200); }
@@ -595,14 +526,34 @@
 .ex-peek__chevron svg { width: 22px; height: 22px; color: #fff; filter: drop-shadow(0 1px 3px rgba(2, 6, 23, 0.7)); }
 .ex-peek--next .ex-peek__doc + .ex-peek__chevron svg { color: var(--ui-slate-700); filter: none; }
 
+/* Narrow screens, by what the person is pointing with rather than by width alone.
+   With a mouse there is no swipe, so the slivers stay — stripped to the chevron, which is the
+   part that was telling anyone there is more sideways. The blurred film goes: at this width
+   it costs more room than it is worth. */
+@media (max-width: 760px) {
+  /* Out of the row and onto the card: the video, the resume and the about card all run the
+     full width here, so the chevron sits on top of whichever of them is showing, pinned to
+     its edge. The blurred film goes — at this size it is a smear, not a preview. */
+  .ex-peek { position: absolute; top: 50%; transform: translateY(-50%); z-index: 5; width: 30px; height: 44px; border-radius: 9999px; background: rgba(2, 6, 23, 0.42); }
+  .ex-peek--prev { left: 6px; }
+  .ex-peek--next { right: 6px; }
+  .ex-peek__film { display: none; }
+  .ex-peek__chevron svg { width: 18px; height: 18px; color: #fff; filter: drop-shadow(0 1px 2px rgba(2, 6, 23, 0.6)); }
+}
+/* With a thumb the swipe is the control, so they go altogether. Must stay after the block
+   above to win: same specificity, later rule. */
+@media (max-width: 760px) and (pointer: coarse) {
+  .ex-peek, .ex-nav, .rf-nav { display: none; }
+}
+
 /* Holds the video and, on the last step, the resume. Whichever is in flow sets the width. */
-.ex-centre { position: relative; display: flex; height: 100%; }
+.ex-centre { position: relative; display: flex; height: 100%; min-width: 0; }
 /* .ex-clip holds the shape and does the clipping; .ex-video is the layer that slides. */
 .ex-clip { position: relative; height: 100%; aspect-ratio: var(--ui-video-ratio); flex: none; max-width: 100%; overflow: hidden; border-radius: var(--ui-radius-xl); background: #020617; }
 .ex-video { position: absolute; inset: 0; }
 .ex-video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .ex-video__none { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ui-slate-300); font-size: 14px; }
-.ex-video__title { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 2; max-width: 70%; padding: 4px 12px; border-radius: 9999px; background: rgba(2, 6, 23, 0.6); color: #fff; font-size: 12px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity 200ms ease; }
+.ex-video__title { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 2; max-width: 70%; padding: 6px 15px; border-radius: 9999px; background: rgba(2, 6, 23, 0.68); color: #fff; font-size: clamp(13px, 1.1vw, 17px); line-height: 1.35; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity 200ms ease; }
 /* Where this candidate's clips are up to; the squarer last dot is the resume. */
 .ex-dots { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 5px; transition: opacity 200ms ease; }
 .ex-dots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255, 255, 255, 0.45); }
@@ -619,7 +570,8 @@
 .ex-resume__hint { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; opacity: 0.85; }
 .ex-resume__name svg, .ex-resume__hint svg { width: 14px; height: 14px; flex: none; }
 
-.ex-row.is-resume .ex-clip { position: absolute; right: 3%; bottom: 3%; z-index: 3; width: 26%; height: auto; aspect-ratio: var(--ui-video-ratio); border-radius: var(--ui-radius-lg); box-shadow: var(--ui-shadow-lg); animation: ex-pip-in 360ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+/* A corner thumbnail, not a second video: small enough to leave the page under it readable. */
+.ex-row.is-resume .ex-clip { position: absolute; right: 3%; bottom: 3%; z-index: 3; width: 18%; height: auto; aspect-ratio: var(--ui-video-ratio); border-radius: var(--ui-radius-lg); box-shadow: var(--ui-shadow-lg); animation: ex-pip-in 360ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 /* A resume is read, not glanced at, so it takes as much height as the stage can give: the
    up and down chevrons shrink and close up, which hands the page back about 24px. An A4 page
    is 0.707 as wide as it is tall, so height is the only thing that makes the text bigger —
@@ -643,7 +595,10 @@
 
 /* Everything known about the candidate, and nothing about the clip. Beside the resume it
    compacts: narrower, facts in one column, and each block rises into place in turn. */
-.ex-side { flex: none; width: 360px; max-width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 12px; max-height: 100%; overflow-y: auto; transition: width 320ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+/* A clamp rather than a number, so the panel tracks the window smoothly instead of holding
+   its full width and then stepping down. The transition is for the resume step, which changes
+   the width on its own. */
+.ex-side { flex: none; width: clamp(250px, 26vw, 360px); max-width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 12px; max-height: 100%; overflow-y: auto; transition: width 320ms cubic-bezier(0.22, 0.61, 0.36, 1); }
 .ex-who { display: flex; flex-direction: column; gap: 2px; }
 .ex-uni { display: flex; align-items: center; gap: 6px; }
 .ex-uni svg { width: 14px; height: 14px; flex: none; }
@@ -661,7 +616,7 @@
 .ex-onwards { flex: none; display: flex; align-items: center; gap: 4px; font-size: 12px; line-height: 16px; color: var(--ui-slate-500); }
 .ex-onwards svg { width: 14px; height: 14px; }
 
-.ex-row.is-resume .ex-side { width: 300px; }
+.ex-row.is-resume .ex-side { width: clamp(220px, 22vw, 300px); }
 .ex-row.is-resume .ex-facts { grid-template-columns: 1fr; }
 .ex-row.is-resume .ex-side > * { animation: ex-rise 360ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 .ex-row.is-resume .ex-side > *:nth-child(2) { animation-delay: 50ms; }
@@ -685,19 +640,26 @@
   .ex-top__row { gap: 4px; }
   .ex-row { gap: 0; }
   .ex-column { width: 100%; }
-  .ex-nav, .ex-onwards, .ex-peek { display: none; }   /* the thumb does all of this */
-  .ex-frame { height: 100%; width: 100%; }
+  .ex-onwards { display: none; }
+  /* The up and down chevrons follow the same rule as the slivers: gone for a thumb, kept and
+     shrunk for a mouse, which has nothing else to move between candidates with. */
+  .ex-nav { width: 28px; height: 28px; }
+  .ex-nav svg { width: 16px; height: 16px; }
+  /* Full bleed: the clip takes the whole width and the chevrons ride on top of it. */
+  .ex-frame { position: relative; height: 100%; width: 100%; }
   .ex-centre { width: 100%; }
   .ex-clip { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 12px; }
-  /* Full screen for the resume, with the video as a thumbnail in the corner. Fixed pixels
-     rather than a percentage, because the box it sits in is no longer a 9:16 one. */
-  .ex-row.is-resume .ex-clip { width: 96px; height: 170px; aspect-ratio: auto; right: 10px; bottom: 10px; border-radius: 10px; }
+  /* Full screen for the resume. The pitch thumbnail lands on top of it at this width, and the
+     resume is the thing being read, so on this step it goes. */
+  .ex-row.is-resume .ex-clip { display: none; }
   .ex-row.is-resume .ex-resume { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 12px; }
   .ex-resume__open { padding: 12px 120px 12px 12px; }
   .ex-dots { bottom: calc(var(--ui-tabbar-space) - 4px); }   /* 6px clear of the nav's top edge */
   /* Paused: the details rise over the bottom of the video, scaled down and clipped rather
      than scrollable, the same as the ranked results. */
-  .ex-side--overlay { position: absolute; inset: auto 0 0; z-index: 4; width: auto; margin: 0; padding: 12px 14px var(--ui-tabbar-space); gap: 8px; max-height: 86%; overflow: hidden; background: linear-gradient(to top, rgba(2, 6, 23, 0.96) 62%, rgba(2, 6, 23, 0)); color: #fff; transition: opacity 180ms ease; }
+  /* Same shade as the ranked feed: opaque almost to the top, so the name and the details are
+     never white-on-white when the clip is paused on a pale frame. */
+  .ex-side--overlay { position: absolute; inset: auto 0 0; z-index: 4; width: auto; margin: 0; padding: 12px 14px var(--ui-tabbar-space); gap: 8px; max-height: 86%; overflow: hidden; background: linear-gradient(to top, rgba(2, 6, 23, 0.97) 88%, rgba(2, 6, 23, 0)); color: #fff; transition: opacity 180ms ease; }
   .ex-side--overlay.is-hidden { opacity: 0; pointer-events: none; }
   .ex-side--overlay .ui-h3 { font-size: 18px; line-height: 24px; color: #fff; }
   .ex-side--overlay .ui-text-soft, .ex-side--overlay .ui-text-muted, .ex-side--overlay .ui-score__label { font-size: 11px; line-height: 16px; color: rgba(255, 255, 255, 0.78); }
@@ -785,7 +747,12 @@
 .pf-tile__cta { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); white-space: nowrap; }
 
 /* The viewer: one video, its title on top, badges and caption along the bottom. */
-.vv { width: auto; max-width: 100%; background: transparent; box-shadow: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+/* A definite width, not `auto`. The wide sheet below asks for `min(1040px, 100%)`, and a
+   percentage needs something to be a percentage OF: against a parent sized by its own
+   contents it has nothing to resolve against and the dialog collapsed to a sliver. The 9:16
+   viewport is unaffected — it is sized from its height and `align-items: center` keeps it in
+   the middle of the wider box. */
+.vv { width: 100%; max-width: 1040px; background: transparent; box-shadow: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 /* The viewport is the fixed box; the frame slides inside it so the motion is clipped
    and the card never travels over the chevrons. */
 .vv__viewport { position: relative; height: min(78vh, 100vh - 190px); max-height: 900px; width: auto; aspect-ratio: var(--ui-video-ratio); max-width: 100%; border-radius: var(--ui-radius-xl); overflow: hidden; background: #020617; }
@@ -793,9 +760,25 @@
 /* A card in the viewer that is not a video: the About sheet, or the resume. */
 .vv__sheet { position: absolute; inset: 0; background: #fff; }
 .vv__pdf { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
-/* The title bar is laid over the top of the frame, so a sheet starts below it. */
-.vv__sheet .cp-sheet { border: 0; border-radius: 0; }
-.vv__sheet .cp-sheet--about { padding-top: 58px; gap: 14px; }
+/* In the row of cards `.cp-sheet` is absolutely positioned to fill its tile. In the viewer it
+   has to be an ordinary box instead, or it stretches to the full height of the dialog and
+   `margin: auto` has nothing to centre. */
+.vv__sheet .cp-sheet { position: relative; inset: auto; border: 0; border-radius: 0; }
+.vv__sheet .cp-sheet--about { gap: 14px; }
+
+/* A sheet is a card, not a picture, so the title bar is a row above it rather than something
+   laid over the top of it. Over a video the bar still floats, because there the space is
+   worth more than the separation — hence `:has()` rather than a rule on .vv__top.
+   It also keeps the card's padding symmetrical: ducking under an overlay meant a big top
+   padding and a small bottom one, so the content sat off-centre. */
+/* `height: 100%` rather than `inset: 0`: it fills a viewport that has a height of its own —
+   the resume's — and collapses to its content in one that does not, which is what lets the
+   About dialog below be only as tall as the card. */
+.vv__frame:has(.vv__sheet) { position: relative; inset: auto; height: 100%; display: flex; flex-direction: column; }
+/* The bar is AFTER the sheet in the markup, so `order` lifts it back to the top. */
+.vv__frame:has(.vv__sheet) .vv__top { position: static; order: -1; flex: none; background: rgba(2, 6, 23, 0.9); }
+.vv__frame:has(.vv__sheet) .vv__sheet { position: relative; inset: auto; flex: 1; min-height: 0; overflow: auto;
+                                        display: flex; flex-direction: column; }
 /* The resume asks for this: a landscape frame as wide as the dialog will go, because the PDF
    is scaled to the frame's width. An A4 page is 794px across at full size, so a frame near
    1000px renders it above 100% and it reads without zooming. 9:16 would be a column of small
@@ -804,6 +787,25 @@
 /* On a sheet the title bar is the only thing laid over the content, so it keeps its own
    backdrop rather than fading into a picture. */
 .vv__viewport.is-wide .vv__top { background: rgba(2, 6, 23, 0.82); }
+
+/* Where there is room, the bar stops being an overlay and becomes the sheet's top row.
+   A card brings its own header — "About" with the Edit button beside it — and an overlaid
+   bar sat on top of that button. Padding the card down to clear it only works while the
+   title fits on one line, which "Your profile details" does not always do.
+   The bar is AFTER the sheet in the markup, so `order` lifts it back to the top. */
+/* Centred both ways, with a readable measure rather than the full 1040px.
+   `margin: auto` rather than `justify-content: center`: it centres a short card the same way,
+   but when the edit form is taller than the frame it still scrolls from the top instead of
+   having its first rows clipped off above the scroll area.
+   The resume is left alone — a PDF wants every pixel of the frame. */
+.vv__viewport.is-wide .vv__sheet .cp-sheet--about,
+.vv__viewport.is-wide .vv__sheet .cp-sheet--edit { width: 100%; max-width: 640px; margin: auto; }
+
+/* The About card is short, so its dialog is as tall as the card rather than a fixed 86vh with
+   several hundred pixels of white under it. The scrim then centres the whole thing. The cap
+   is the old fixed height, so a long edit form still scrolls inside the frame instead of
+   running off the screen. The resume keeps the tall frame: a PDF fills whatever it is given. */
+.vv__viewport.is-wide:has(.cp-sheet--about) { height: auto; max-height: min(86vh, 100vh - 150px); }
 .vv__frame > video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #020617; }
 .vv__top { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 16px; background: linear-gradient(to bottom, rgba(2, 6, 23, 0.72), rgba(2, 6, 23, 0)); color: #fff; }
 .vv__title { font-size: 15px; line-height: 20px; font-weight: 600; }
@@ -829,8 +831,16 @@
   .vv__viewport, .vv__viewport.is-wide { width: 100%; height: 100%; max-height: none; aspect-ratio: auto; border-radius: 0; }
   .vv__close { width: 44px; height: 44px; }
   .vv__close svg { width: 22px; height: 22px; }
-  .vv__nav, .vv__count { display: none; }   /* the thumb does this */
+  /* Shrunk, not removed: with a mouse these chevrons are the only way through the videos, and
+     a narrow window is not the same thing as a thumb. The coarse-pointer block below drops
+     them for a phone, where the swipe does the same job. */
+  .vv__count { display: none; }
+  .vv__nav { width: 34px; height: 34px; }
+  .vv__nav svg { width: 18px; height: 18px; }
   .vv__bottom { padding-bottom: 24px; }
+}
+@media (max-width: 760px) and (pointer: coarse) {
+  .vv__nav { display: none; }   /* the thumb does this */
 }
 
 /* The pitch is a pinned post; an empty slot beside it invites another video. */
@@ -868,27 +878,94 @@
 .rf-filters { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .rf-stage { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.rf-nav { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: none; border: 0; border-radius: 50%; background: var(--ui-slate-100); color: var(--ui-slate-700); cursor: pointer; transition: background 140ms ease; }
+/* The chevrons are centred on the stage, but the stage is the video AND the panel beside it,
+   so plain centring put them under the gap rather than under the clip. Leaning them away from
+   the panel by its full width moves them half that far — which is exactly the offset between
+   the two centres — so they line up with the video they page through. */
+.rf-nav { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: none; margin-right: calc(var(--rf-side) + var(--rf-gap)); border: 0; border-radius: 50%; background: var(--ui-slate-100); color: var(--ui-slate-700); cursor: pointer; transition: background 140ms ease; }
 .rf-nav:hover { background: var(--ui-slate-200); }
 .rf-nav svg { width: 20px; height: 20px; }
 /* Kept in the layout so the card never shifts between the first and the middle. */
 .rf-nav.is-off { visibility: hidden; pointer-events: none; }
 
 .rf-viewport { position: relative; flex: 1; min-height: 0; width: 100%; overflow: hidden; }
-.rf-slide { position: absolute; inset: 0; display: flex; gap: 24px; align-items: stretch; justify-content: center; }
+.rf-slide { position: absolute; inset: 0; display: flex; gap: var(--rf-gap); align-items: stretch; justify-content: center; }
 
+/* The slivers either side of the clip, the same parts Explore uses. Only the middle moves on
+   a sideways swipe, so the panel beside it keeps its place. `min-width: 0` lets the frame be
+   squeezed rather than spilling over the panel at an in-between width. */
+/* `flex: 0 1 auto`, not `flex: 1`: stretched across the leftover width it centred the clip
+   inside itself, which parked the panel a few hundred pixels off to the right. Sized to its
+   contents, the clip and the panel travel together and the slide centres the pair. */
+.rf-frame { flex: 0 1 auto; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; overflow: hidden; }
+/* The slivers give up their width before the video does. They are `flex: none` on Explore,
+   which starved the clip here as the window narrowed — the peeks kept their 52px, the middle
+   was the only thing left that could shrink, and it shrank to nothing. */
+.rf-frame .ex-peek { flex: 0 1 52px; min-width: 0; }
+/* Holds the video and, on the last step, the resume. It is exactly as wide as what is inside
+   it — `flex: 1` would stretch it across the frame and leave the slivers stranded at the far
+   edges instead of hugging the clip.
+   `min-width: 0` is what stops it overflowing: the clip is sized off its height and the 9:16
+   ratio, so on a tall window its natural width can beat the frame. Being allowed to shrink
+   below that natural width is what finally lets the clip's own `max-width: 100%` bite. */
+.rf-centre { position: relative; flex: 0 1 auto; min-width: 0; display: flex; align-items: center; justify-content: center; height: 100%; }
+/* .rf-video holds the shape and does the clipping; .rf-clip is the layer that slides. */
+/* Sized off its height and the 9:16 ratio, then capped by the width the centre actually has.
+   When the cap bites the box is narrower than 9:16 and the picture letterboxes inside it
+   (`object-fit: contain`), which is a narrow video rather than a clipped or a vanished one. */
 .rf-video { position: relative; height: 100%; aspect-ratio: var(--ui-video-ratio); flex: none; max-width: 100%; border-radius: var(--ui-radius-xl); overflow: hidden; background: #020617; }
+.rf-clip { position: absolute; inset: 0; }
 .rf-video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-.rf-video__none { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ui-slate-300); font-size: 14px; }
-.rf-video__title { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 2; max-width: 70%; padding: 4px 12px; border-radius: 9999px; background: rgba(2, 6, 23, 0.6); color: #fff; font-size: 12px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rf-video__score { position: absolute; top: 12px; right: 12px; z-index: 2; padding: 4px 10px; border-radius: 9999px; background: var(--ui-emerald-500); color: var(--ui-slate-900); font-size: 12px; line-height: 16px; }
 
-.rf-side { width: 380px; max-width: 100%; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+/* Beside the resume the clip becomes a thumbnail in its corner, exactly as on Explore: in
+   flow it would make the middle twice as wide and push it over the panel. A resume is read
+   rather than glanced at, so it takes the height the chevrons give back by shrinking. */
+.rf-slide.is-resume .rf-video { position: absolute; right: 3%; bottom: 3%; z-index: 3; width: 26%; height: auto; aspect-ratio: var(--ui-video-ratio); border-radius: var(--ui-radius-lg); box-shadow: var(--ui-shadow-lg); }
+.rf-slide.is-resume .rf-frame { height: calc(100% - 44px); }
+.rf-slide.is-resume .rf-video__title, .rf-slide.is-resume .ex-dots { opacity: 0; pointer-events: none; }
+/* The layer that takes a click on the video. On a phone it is how the feed pauses; beside the
+   resume the video has no controls of its own, so it is how a desktop pauses too — which is
+   why this lives out here rather than in the small-screen block. */
+.rf-tap { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; cursor: pointer; }
+.rf-tap__icon { display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; background: rgba(255, 255, 255, 0.9); color: var(--ui-slate-900); }
+.rf-tap__icon svg { width: 28px; height: 28px; }
+/* On the thumbnail a 64px disc would cover the picture. */
+.rf-slide.is-resume .rf-tap__icon { width: 36px; height: 36px; }
+.rf-slide.is-resume .rf-tap__icon svg { width: 18px; height: 18px; }
+.rf-video__none { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ui-slate-300); font-size: 14px; }
+/* The title and the score are the two things read off the clip itself, so they scale with the
+   stage rather than staying at a caption size: 12px was lost on a large screen. */
+.rf-video__title { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 2; max-width: 70%; padding: 6px 15px; border-radius: 9999px; background: rgba(2, 6, 23, 0.68); color: #fff; font-size: clamp(13px, 1.1vw, 17px); line-height: 1.35; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rf-video__score { position: absolute; top: 12px; right: 12px; z-index: 2; padding: 6px 13px; border-radius: 9999px; background: var(--ui-emerald-500); color: var(--ui-slate-900); font-size: clamp(13px, 1.1vw, 17px); line-height: 1.35; font-weight: 500; }
+.rf-video__score strong { font-size: 1.14em; font-weight: 700; }
+
+/* `flex: none` so the panel keeps its width whatever the middle is doing: the A4 resume is
+   much wider than the 9:16 clip, and letting flex settle it meant the panel was squeezed and
+   then painted over at the widths in between. It still has to shrink as the window does,
+   though, so the width is a clamp rather than a number — it tracks the viewport smoothly
+   instead of staying at 380px until the phone breakpoint drops it to an overlay.
+   The width is a variable because the up and down chevrons need it too; see .rf-nav. */
+.rf-app { --rf-side: clamp(260px, 27vw, 380px); --rf-gap: 24px; }
+/* A resume is read, not glanced at, so on that step the panel gives it some of its width. */
+.rf-stage.is-resume { --rf-side: clamp(230px, 23vw, 320px); }
+.rf-side { flex: none; width: var(--rf-side); max-width: 100%; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
 .rf-who { display: flex; flex-direction: column; gap: 2px; }
 .rf-rank { font-size: 12px; line-height: 16px; color: var(--ui-slate-500); }
-/* One row, as on Explore: each button at its natural width. */
-.rf-actions { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+/* One row, as on Explore: each button at its natural width. It may wrap as a last resort —
+   three buttons at a fixed size in a column that keeps narrowing used to overflow instead,
+   and an overflowing row puts a scrollbar across the whole page. */
+.rf-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .rf-actions > * { flex: none; }
+
+/* The panel scales with the window like its width does. Everything in it was a fixed size, so
+   as the column narrowed the text and the buttons kept their full size and pushed out of it. */
+.rf-side { min-width: 0; overflow-x: hidden; }
+.rf-side .ui-h3 { font-size: clamp(17px, 1.35vw, 22px); line-height: 1.25; }
+.rf-side .ui-score__value { font-size: clamp(22px, 2vw, 30px); line-height: 1.15; }
+.rf-side .ui-breakdown { padding: clamp(12px, 1.1vw, 20px); gap: clamp(10px, 1vw, 16px); }
+.rf-side .ui-breakdown__line, .rf-side .ui-breakdown__value { font-size: clamp(12px, 0.95vw, 14px); }
+.rf-actions .ui-btn { height: clamp(32px, 2.6vw, 40px); padding: 0 clamp(9px, 0.9vw, 16px); font-size: clamp(12px, 0.95vw, 14px); }
+.rf-actions .ui-icon-btn { width: clamp(32px, 2.6vw, 40px); height: clamp(32px, 2.6vw, 40px); }
 .rf-skills { flex: none; }
 /* Skills on the recruiter's panels: wrapped, ten to a page (see SKILL_BATCH on both pages).
    A profile holds at most ten today — MAX_SKILLS in options_service.py, enforced by
@@ -909,18 +986,35 @@
 @media (max-width: 760px) {
   .rf-main { padding: 10px 12px 6px; gap: 8px; }
   .rf-top__actions .ui-btn span { display: none; }
-  .rf-slide { gap: 0; }
-  .rf-video { width: 100%; height: 100%; aspect-ratio: auto; }
+  /* The panel is an overlay here, so it takes no width beside the video and the chevrons have
+     nothing to lean away from. */
+  .rf-app, .rf-stage.is-resume { --rf-side: 0px; --rf-gap: 0px; }
+  /* Full bleed: the clip takes the whole width and the chevrons ride on top of it, pinned to
+     its edges, rather than taking a column each beside it. At this width there is no room to
+     spend on anything that is not the video. */
+  .rf-frame { position: relative; width: 100%; }
+  .rf-centre { width: 100%; }
+  /* The pitch thumbnail lands on top of the resume at this width, and the resume is the thing
+     being read, so on this step it goes. The dots still say there is a video behind it. */
+  .rf-slide.is-resume .rf-video { display: none; }
+  .rf-video { width: 100%; height: 100%; aspect-ratio: auto; max-width: none; }
   .rf-video video { object-fit: contain; }
-  /* A tap pauses and brings the details up over the video. */
-  .rf-tap { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; cursor: pointer; }
-  .rf-tap__icon { display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; background: rgba(255, 255, 255, 0.9); color: var(--ui-slate-900); }
-  .rf-tap__icon svg { width: 28px; height: 28px; }
+  /* The thumb does the paging here, so the slivers and their chevrons go away. */
+  .rf-slide.is-resume .rf-video { height: 100%; align-self: auto; }
+  .rf-slide.is-resume .ex-resume { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 12px; }
+  /* On a phone the clip fills the frame and the score sits on the picture rather than on the
+     card, so the mint loses its contrast. Darkening the same green keeps it the match colour
+     and makes the number readable over anything behind it. */
+  .rf-video__score { background: var(--ui-emerald-700); color: #fff; }
   /* Paused on a phone: the details rise over the bottom of the video as a compact sheet.
      Everything inside is scaled down and the score formula is dropped, because a feed
      overlay you have to scroll inside is an overlay that does not fit. It is clipped at
      70% of the frame rather than scrolled: the cap on the skills keeps it inside that. */
-  .rf-side--overlay { position: absolute; inset: auto 0 0; z-index: 3; width: auto; margin: 0; padding: 12px 14px var(--ui-tabbar-space); gap: 8px; max-height: 70%; overflow: hidden; background: linear-gradient(to top, rgba(2, 6, 23, 0.96) 58%, rgba(2, 6, 23, 0)); color: #fff; transition: opacity 180ms ease; }
+  /* The shade holds almost to the top of the panel and only softens over the last stretch.
+     It used to start fading at 58%, which put the name, the details and the match score in
+     the thin part of it — white text over whatever the clip was paused on, and a pale frame
+     made them unreadable. The fade is kept so the sheet still melts into the video. */
+  .rf-side--overlay { position: absolute; inset: auto 0 0; z-index: 3; width: auto; margin: 0; padding: 12px 14px var(--ui-tabbar-space); gap: 8px; max-height: 70%; overflow: hidden; background: linear-gradient(to top, rgba(2, 6, 23, 0.97) 86%, rgba(2, 6, 23, 0)); color: #fff; transition: opacity 180ms ease; }
   .rf-side--overlay.is-hidden { opacity: 0; pointer-events: none; }
   .rf-side--overlay .ui-h3 { font-size: 18px; line-height: 24px; color: #fff; }
   .rf-side--overlay .ui-text-soft, .rf-side--overlay .ui-text-muted, .rf-side--overlay .rf-rank { font-size: 12px; line-height: 16px; color: rgba(255, 255, 255, 0.78); }
@@ -979,3 +1073,36 @@
 /* The grid cell a revealed tile sits in grows with it; `break-word` keeps a long unbroken
    value, such as a URL-like course code, inside the card instead of spilling out. */
 .ex-fact > strong, .cp-fact > strong { overflow-wrap: break-word; }
+
+/* ---------- Settings (Responsibility 2, issue #5) ---------- */
+/* An ordinary scrolling page, unlike the video screens: there is nothing here to keep in
+   frame, so it behaves the way a settings page is expected to. */
+.st-main { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; padding: 20px 24px calc(24px + var(--ui-tabbar-space)); }
+.st-head { display: flex; flex-direction: column; gap: 4px; }
+.st-skeleton { height: 220px; border-radius: var(--ui-radius-xl); }
+.st-card { display: flex; flex-direction: column; gap: 14px; }
+.st-card__head { display: flex; align-items: flex-start; gap: 12px; }
+.st-card__head > div { display: flex; flex-direction: column; gap: 4px; }
+.st-card__icon { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: none; border-radius: var(--ui-radius-lg); background: var(--ui-slate-100); color: var(--ui-slate-700); }
+.st-card__icon svg { width: 18px; height: 18px; }
+
+/* Says the state in words as well as by the tick, because "hidden" is the kind of setting
+   somebody comes back to check. */
+.st-state { font-size: 13px; line-height: 18px; font-weight: 500; color: var(--ui-emerald-700); }
+.st-state.is-hidden { color: var(--ui-amber-700); }
+
+/* The field grows, the button keeps its size. */
+.st-add { display: flex; align-items: flex-end; gap: 8px; }
+.st-add .ui-field { flex: 1; min-width: 0; }
+.st-add .ui-btn { flex: none; }
+
+.st-blocked { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.st-blocked li { display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px 5px 12px; border: 1px solid var(--ui-slate-200); border-radius: 9999px; background: var(--ui-slate-50); font-size: 13px; line-height: 18px; }
+.st-blocked button { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ui-slate-500); cursor: pointer; }
+.st-blocked button:hover:not(:disabled) { background: var(--ui-slate-200); color: var(--ui-slate-900); }
+.st-blocked button svg { width: 13px; height: 13px; }
+
+@media (max-width: 760px) {
+  .st-main { padding: 14px 14px calc(16px + var(--ui-tabbar-space)); gap: 12px; }
+  .st-add { flex-direction: column; align-items: stretch; }
+}

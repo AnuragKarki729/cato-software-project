@@ -164,13 +164,10 @@ export function useGridPager({
   return { slide, goRow, goColumn, hasAbove, hasBelow, handlers };
 }
 
-/** True on a small screen. For the demo a narrow window counts as a phone.
- *
- *  Read straight from the media query rather than copied into state, so resizing the window
- *  cannot leave the layout and the behaviour disagreeing for a render. The breakpoint is the
- *  same 760px the CSS uses; keep the two equal.
- */
-export function useSmallScreen(query = '(max-width: 760px)') {
+/** Live answer to a media query, read straight from `matchMedia` rather than copied into
+ *  state, so resizing the window cannot leave the layout and the behaviour disagreeing for a
+ *  render. */
+function useMedia(query, fallback = false) {
   const subscribe = useCallback((changed) => {
     const media = window.matchMedia?.(query);
     if (!media) return () => {};
@@ -178,5 +175,30 @@ export function useSmallScreen(query = '(max-width: 760px)') {
     return () => media.removeEventListener('change', changed);
   }, [query]);
   const read = useCallback(() => !!window.matchMedia?.(query).matches, [query]);
-  return useSyncExternalStore(subscribe, read, () => false);
+  return useSyncExternalStore(subscribe, read, () => fallback);
+}
+
+/** True on a small screen. This is about LAYOUT — how much room there is — so a narrow window
+ *  counts whether or not it is a phone: the details become an overlay and the video fills the
+ *  card. The breakpoint is the same 760px the CSS uses; keep the two equal.
+ *
+ *  For how the person actually works the thing, ask `useTouchScreen` instead.
+ */
+export function useSmallScreen(query = '(max-width: 760px)') {
+  return useMedia(query);
+}
+
+/** True when the primary pointer is a finger.
+ *
+ *  This is about INPUT, not room, and the two used to be the same question: a narrow window
+ *  was assumed to be a phone, so a desktop browser dragged narrow lost its video controls and
+ *  was left with tap-to-play and nothing to scrub with. `(pointer: coarse)` asks the browser
+ *  what it actually has, so a mouse keeps its controls at any width and a phone keeps its
+ *  gestures on any screen.
+ *
+ *  It describes the PRIMARY pointer, so a laptop with a touchscreen reads as fine — right for
+ *  us, since that person still has the trackpad the controls are built for.
+ */
+export function useTouchScreen() {
+  return useMedia('(pointer: coarse)');
 }

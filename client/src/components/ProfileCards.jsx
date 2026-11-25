@@ -9,7 +9,7 @@
 // their own profile: being sent to another page to change a value is what the preview exists
 // to avoid. Saving goes through Responsibility 2's endpoint and schema; nothing here is new
 // server work.
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Briefcase, Calendar, Check, ExternalLink, FileText, GraduationCap, Pencil, RotateCcw, Star, Upload, X } from 'lucide-react';
 import { api } from '../api.js';
 import SearchSelect from './ui/SearchSelect.jsx';
@@ -27,9 +27,17 @@ const NO_OPTIONS = {
   years: [1, 2, 3, 4, 5], internships: [0, 1, 2, 3, 4, 5], max_skills: 10,
 };
 
-/** `onEditing` lets the page know the card has become a form, so it can stop a click on the
- *  card from opening it in a dialog and throwing away what has been typed. */
-export function AboutCard({ profile, match, options = NO_OPTIONS, editable = false, onSaved, onEditing, focusable = true }) {
+/**
+ * `onEditing` lets the page know the card has become a form, so it can stop a click on the
+ * card from opening it in a dialog and throwing away what has been typed.
+ *
+ * `onRequestEdit` is for the small card in the row: there is no room to fill in a form that
+ * size, so Edit asks the page to open this card full size instead of turning the little one
+ * into a form. The page then renders the big copy with `startInEdit`, which opens it ready to
+ * type. Left off — the big copy, or any other caller — Edit still edits in place.
+ */
+export function AboutCard({ profile, match, options = NO_OPTIONS, editable = false, onSaved, onEditing,
+                            focusable = true, onRequestEdit, startInEdit = false }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -59,6 +67,15 @@ export function AboutCard({ profile, match, options = NO_OPTIONS, editable = fal
   };
 
   const stopEdit = () => { setEditing(false); onEditing?.(false); };
+
+  // Opened full size with Edit already pressed on the small card, so it arrives as a form
+  // rather than making the applicant find the button a second time.
+  useEffect(() => {
+    if (startInEdit && editable && !editing) startEdit();
+    // startEdit only reads props, and re-running on every render would fight Cancel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startInEdit, editable]);
+
   const setField = (key) => (value) => setForm((now) => ({ ...now, [key]: value }));
   const toggleSkill = (skill) => setForm((now) => ({
     ...now,
@@ -141,7 +158,7 @@ export function AboutCard({ profile, match, options = NO_OPTIONS, editable = fal
       <div className="cp-sheet__head">
         <p className="ui-score__label">About</p>
         {editable && (
-          <Button variant="secondary" size="sm" icon={Pencil} onClick={startEdit}
+          <Button variant="secondary" size="sm" icon={Pencil} onClick={onRequestEdit || startEdit}
             tabIndex={focusable ? 0 : -1}>Edit</Button>
         )}
       </div>

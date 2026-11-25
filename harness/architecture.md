@@ -48,29 +48,48 @@ pyproject.toml, uv.lock   root uv project for running the server locally
 
 ## API surface
 
-Mounted in `main.py`: `auth`, `videos`, `feed`, `options`, `profiles`, `matching`.
+Mounted in `main.py`: `auth`, `videos`, `feed`, `options`, `profiles`, `matching`, `filters`,
+`invitations`.
 
 | Prefix | Endpoints | Responsibility |
 |---|---|---|
 | `/api/auth` | `POST /signup`, `POST /login`, `GET /me`, `POST /logout` | 7 |
 | `/api/videos` | `POST ""`, `GET /applicant/{id}`, `GET /{video_id}`, `DELETE /{video_id}` | 1 |
-| `/api/feed` | `GET ""` (applicant feed), `GET /explore`, `GET /fields` (recruiter, no filters) | 3 |
+| `/api/feed` | `GET ""` (plain video list), `GET /explore`, `GET /fields` (no filters) | 3 |
 | `/api/options` | `GET ""` (universities, fields of study, skills, years) | shared |
 | `/api/profiles` | `GET /me`, `PUT /me`, `PUT /me/draft`, `POST /me/resume`, `DELETE /me/resume`, `GET /{applicant_id}` | 2 |
 | `/api/matching` | `GET /results`, `GET /results/{applicant_id}`, `GET /preview` | 5 |
+| `/api/filters` | `GET /me`, `PUT /me`, `DELETE /me` (the recruiter's saved search) | 4 |
+| `/api/invitations` | `POST ""`, `GET /sent`, `GET /received`, `POST /{id}/accept`, `POST /{id}/decline` | 8 |
 
-`routers/saved.py` (Responsibility 6) has its endpoints written but is **not mounted** in `main.py`,
-and its `savedsearch` and `bookmark` models do not exist. There are no routers for filters
-(Responsibility 4) or invitations (Responsibility 8).
+Every `/api/feed` endpoint serves both roles. An applicant is left out of their own feed; a
+recruiter sees everybody. Both the applicant's Video feed and the recruiter's Explore are built
+on `/explore`, which is why they look alike — only the recruiter's page offers saving and
+inviting.
+
+`routers/saved.py` (Responsibility 6) has its endpoints written but is **not mounted** in
+`main.py`, and its `savedsearch` and `bookmark` models do not exist.
 
 ## Tables that exist
 
-`user`, `authsession`, `registrationconsent`, `video`, `applicantprofile`, `recruiterfilter`.
+`user`, `authsession`, `registrationconsent`, `video`, `applicantprofile`, `recruiterfilter`,
+`vocabularyterm`, `invitation`.
 
 - `applicantprofile` allows partly filled rows (the "Save draft" step). `details_complete` means
   matching can use the row; `onboarding_complete` also requires the resume.
 - `recruiterfilter` is Responsibility 4's table. It was added by Responsibility 5 because matching
-  reads it; the filter page and its save endpoints are still Responsibility 4's work.
+  reads it; `routers/filters.py` now saves and loads it.
+- `vocabularyterm` holds the growing lists of universities, fields of study and skills. These are
+  no longer fixed: `routers/profiles.py` adds whatever an applicant picks or the resume parser
+  reads, and `/api/options` serves the table, not the seed lists in `options_service`.
+
+  **Anything that checks a field of study or a skill must check the vocabulary**, through
+  `vocabulary_service.resolve(session, kind, label, create=False)` — which also returns the
+  canonical spelling, so a filter stores the same string a profile does and matching keeps
+  comparing exact strings. Comparing against `options_service.SKILLS` instead is a bug: the
+  form offers a term from the vocabulary and the server then refuses it. `routers/matching.py`
+  and `routers/filters.py` both resolve. `create=False` is the rule that recruiters search the
+  vocabulary and do not extend it.
 
 ## Client design system (added with Responsibilities 2 and 5)
 
@@ -125,8 +144,8 @@ Each page calls the real endpoint first and falls back only when the route is mi
 
 | Page | Falls back to | Waiting on |
 |---|---|---|
-| `applicant/Invitations.jsx` | `sampleInvitations()` | Responsibility 8 |
-| `recruiter/SentInvitations.jsx` | `SAMPLE_SENT` | Responsibility 8 |
+| `applicant/Invitations.jsx` | `sampleInvitations()` | nothing — `/api/invitations` exists now |
+| `recruiter/SentInvitations.jsx` | `SAMPLE_SENT` | nothing — `/api/invitations` exists now |
 | `recruiter/Saved.jsx` | `SAMPLE_SEARCHES` | Responsibility 6 |
 
 **A screen that looks finished may be running on this fake data.** Delete the file and the fallbacks
@@ -170,15 +189,8 @@ tab's session storage). Use `Depends(get_current_user)`, `get_current_applicant`
 |---|---|
 | `.github/workflows/deploy.yml` runs tests and pushes images to GHCR | No `.github/` folder exists |
 | `docker-compose.prod.yml` for production | File does not exist |
-| `cp .env.example .env` | No `.env.example` exists |
-| `docs/uploads.md` | File does not exist |
-| `server/pyproject.toml` | `pyproject.toml` is at the repository root; the image uses `server/requirements.txt` |
-| Files are stored in a Docker `uploads` volume and served at `/api/files/...` | They are stored in Cloudinary |
 | Compose project name `cato-sad` | It is `cato-simple` |
-| `routers/filters.py`, `routers/invitations.py`, `services/invitation_service.py` | Not created yet |
-| Models `saved_search.py`, `bookmark.py`, `invitation.py` | Not in `server/app/models/` |
+| Models `saved_search.py`, `bookmark.py` | Not in `server/app/models/` |
 | Tests run with `uv run pytest` | `pytest` is not declared in `pyproject.toml` or `requirements.txt` |
-| Styling is Tailwind only, with no per-page CSS | There is no Tailwind. Styling is plain CSS in `client/src/styles/` |
-| The pitch video is 30 seconds | `config.py` allows 20; the supervisor asks for 60 in issue #3 |
 
 Remove a row when the document or the code is fixed.

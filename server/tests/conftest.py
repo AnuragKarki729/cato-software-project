@@ -35,7 +35,10 @@ def users(client):
             user.password_hash = encoded
             session.add(user)
         session.commit()
-        accounts = [dict(id=u.id, email=u.email, role=u.role, name=u.name) for u in seeded]
+        # company_name is here for the blocked-companies tests (issue #5): a block is matched
+        # on the recruiter's company, so a test needs to know what theirs is called.
+        accounts = [dict(id=u.id, email=u.email, role=u.role, name=u.name,
+                         company_name=u.company_name) for u in seeded]
     for user in accounts:
         user['token'] = client.post('/api/auth/login', json={
             'email': user['email'], 'password': 'Test-password-123'}).json()['access_token']

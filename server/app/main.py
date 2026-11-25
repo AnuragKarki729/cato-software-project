@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel
 import app.models  # registers every table (User, Video, AuthSession, RegistrationConsent, ApplicantProfile, RecruiterFilter)
-from app.routers import auth, videos, feed, options, profiles, matching
-from app.database import engine
+from app.routers import auth, videos, feed, options, profiles, matching, filters, invitations, saved
+from app.database import add_missing_columns, engine
 from app.seed import seed_demo_profiles, seed_if_empty, seed_vocabulary
 
 app = FastAPI(title="Cato Recruitment Platform")
@@ -17,8 +17,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create database tables
+# Create database tables, then patch in any column added to a table that already exists —
+# create_all does not do that, and the database outlives `docker compose down`. See
+# database.ADDED_COLUMNS.
 SQLModel.metadata.create_all(engine)
+add_missing_columns()
 seed_if_empty()
 seed_vocabulary()  # universities and fields of study, which then grow
 seed_demo_profiles()
@@ -30,12 +33,19 @@ app.include_router(feed.router, prefix="/api/feed", tags=["feed"])
 app.include_router(options.router, prefix="/api")  # fixed options for the profile and filter forms
 app.include_router(profiles.router, prefix="/api")  # Responsibility 2
 app.include_router(matching.router, prefix="/api")  # Responsibility 5
-# saved.router (Responsibility 6) still waits for the filter endpoints, bookmarks and invitations (Responsibilities 4, 6, 8).
+app.include_router(filters.router, prefix="/api")  # Responsibility 4
+app.include_router(invitations.router, prefix="/api")  # Responsibility 8
+app.include_router(saved.router, prefix="/api")  # Responsibility 6
 
 @app.get("/")
 def read_root():
     return {"message": "Cato Recruitment API"}
 
+
+# Under /api like everything else, so one proxy rule covers the whole API: the client sends
+# /api to the server (VITE_API_TARGET) and a bare /health would not have been reachable
+# through it. The root one is kept for anything already pointed at it.
+@app.get("/api/health")
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    return {"status": "ok"}

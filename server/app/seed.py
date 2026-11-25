@@ -13,6 +13,16 @@ RECRUITERS = [
     # name, email, company
     ("Aye Myo Myat", "aye@cato.test", "Cato"),
     ("Siwakorn P.", "siwakorn@cato.test", "Cato"),
+    ("Sarah Chen", "amazon@cato.test", "Amazon"),
+    ("James Park", "google@cato.test", "Google"),
+    ("Lisa Wang", "nvidia@cato.test", "NVIDIA"),
+    ("Somchai Prasert", "scb@cato.test", "SCB"),
+    ("Pimchanok Lert", "agoda@cato.test", "Agoda"),
+    ("Tanawat Siri", "line@cato.test", "Line Company"),
+    ("Natthapong Krit", "true@cato.test", "True Digital"),
+    ("Warunee Chai", "grab@cato.test", "Grab"),
+    ("Priya Sharma", "microsoft@cato.test", "Microsoft"),
+    ("Kanya Thong", "dtac@cato.test", "dtac"),
 ]
 
 APPLICANTS = [
@@ -51,6 +61,10 @@ DEMO_PROFILES = [
     ("Thanakorn Wong", "thanakorn@cato.test", "King Mongkut's University of Technology Thonburi", "Engineering", 4, 3.40, 2, "Python,C++,Linux,Git"),
     ("Sara Ahmed", "sara@cato.test", "Assumption University", "Business", 3, 3.65, 1, "Excel,Tableau,SQL"),
     ("Arif Rahman", "arif@cato.test", "Chiang Mai University", "Computer Science", 2, 3.90, 0, "Python,JavaScript,React"),
+    # The eleventh applicant: the feed pages ten at a time, so one page of demo data would
+    # never show the paging working. Deliberately outside the Computer Science searches the
+    # other tests make, so adding them changes no existing count.
+    ("Nicha Pongtham", "nicha@cato.test", "Assumption University", "Design", 1, 2.40, 0, "Figma,Excel"),
 ]
 
 # Anurag's seeded account gets a profile without a resume, so onboarding still asks for one.

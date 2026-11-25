@@ -107,3 +107,31 @@ class ProfileOut(BaseModel):
     details_complete: bool = False
     onboarding_complete: bool = False
     updated_at: datetime | None = None
+    # Issue #5 — privacy, shown on Settings. Only ever read by the applicant themselves:
+    # GET /profiles/{id} serves the recruiter's view and leaves both of these out.
+    hidden: bool = False
+    blocked_companies: list[str] = Field(default_factory=list)
+
+
+class PrivacyIn(BaseModel):
+    """The Settings page: who may see this applicant.
+
+    Separate from ProfileIn because it is not part of onboarding and has nothing to do with
+    whether a profile counts as complete — an applicant edits it long after they are set up.
+    """
+    hidden: bool = False
+    blocked_companies: list[str] = Field(default_factory=list)
+
+    @field_validator("blocked_companies")
+    @classmethod
+    def tidy(cls, value):
+        # Deduplicated without case or spacing, so "Agoda" and "agoda " are one block, and
+        # capped so the column cannot be filled up.
+        seen, kept = set(), []
+        for name in value:
+            name = " ".join((name or "").split())
+            key = name.casefold()
+            if name and key not in seen:
+                seen.add(key)
+                kept.append(name[:120])
+        return kept[:50]

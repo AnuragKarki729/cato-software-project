@@ -18,7 +18,7 @@ from sqlmodel import Session, select
 from app.database import engine, get_session
 from app.models import ApplicantProfile, User
 from app.models.applicant_profile import utcnow
-from app.schemas.profile import ProfileDraftIn, ProfileIn, ProfileOut
+from app.schemas.profile import PrivacyIn, ProfileDraftIn, ProfileIn, ProfileOut
 from app.services import resume_ai_service, storage_service, vocabulary_service
 from app.services.auth_service import get_current_applicant, get_current_user
 from app.services.matching_service import split_skills
@@ -49,6 +49,8 @@ def profile_out(profile: ApplicantProfile, user: User) -> ProfileOut:
         details_complete=profile.details_complete,
         onboarding_complete=profile.onboarding_complete,
         updated_at=profile.updated_at,
+        hidden=profile.hidden,
+        blocked_companies=split_skills(profile.blocked_companies),
     )
 
 
@@ -235,7 +237,37 @@ def get_profile(applicant_id: int, user: User = Depends(get_current_user), sessi
     profile = find_profile(session, applicant_id) if applicant and applicant.role == "applicant" else None
     if profile is None:
         raise HTTPException(status_code=404, detail="Applicant profile not found")
+    # A hidden applicant is not listed anywhere, so reading them by id directly should not be
+    # the way round it. They can still open their own profile, which is how Settings and the
+    # preview keep working while hidden.
+    if profile.hidden and user.id != applicant_id:
+        raise HTTPException(status_code=404, detail="Applicant profile not found")
+    if user.role == "recruiter" and profile.blocks(user.company_name):
+        raise HTTPException(status_code=404, detail="Applicant profile not found")
     out = profile_out(profile, applicant)
     if user.role != "recruiter" and user.id != applicant_id:
         out.resume_url = out.resume_name = out.resume_size = out.resume_uploaded_at = None
+    # Privacy is the applicant's own business: nobody else is told that they are hidden, or
+    # which companies they have blocked.
+    if user.id != applicant_id:
+        out.hidden = False
+        out.blocked_companies = []
     return out
+
+
+@router.put("/me/privacy", response_model=ProfileOut)
+def save_privacy(body: PrivacyIn, user: User = Depends(get_current_applicant),
+                 session: Session = Depends(get_session)):
+    """Issue #5 — the Settings page: hide me, and the list of companies to stay away from.
+
+    Its own endpoint rather than part of PUT /me: these have nothing to do with whether a
+    profile is complete, and an applicant changes them long after onboarding is done.
+    """
+    profile = get_or_create_profile(session, user.id)
+    profile.hidden = body.hidden
+    profile.blocked_companies = ",".join(body.blocked_companies)
+    profile.updated_at = utcnow()
+    session.add(profile)
+    session.commit()
+    session.refresh(profile)
+    return profile_out(profile, user)

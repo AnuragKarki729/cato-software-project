@@ -18,6 +18,7 @@
 .lp-visual__glow { position: absolute; left: -40px; top: -20px; width: 680px; height: 680px; max-width: none; pointer-events: none; }
 .lp-feed { position: absolute; left: 180px; top: 10px; width: 360px; height: 640px; overflow: hidden; border-radius: 16px; background: var(--ui-slate-800); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
 .lp-feed__initials { position: absolute; left: 50%; top: calc(50% - 110px); transform: translateX(-50%); font-size: 96px; line-height: 36px; font-weight: 600; letter-spacing: -0.015em; color: #334155; }
+.lp-feed__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
 .lp-feed__shade { position: absolute; left: 0; right: 0; bottom: 0; height: 360px; background: linear-gradient(to bottom, rgba(2, 6, 23, 0), rgba(2, 6, 23, 0.92)); }
 .lp-feed__top { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 16px; }
 .lp-feed__kind { padding: 4px 10px; border-radius: 9999px; background: var(--ui-emerald-500); color: var(--ui-slate-900); font-size: 12px; line-height: 16px; font-weight: 500; }
