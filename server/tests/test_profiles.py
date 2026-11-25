@@ -89,18 +89,34 @@ def test_save_draft_accepts_a_partly_filled_form(client, nusrat, storage):
 
 
 @pytest.mark.parametrize("changes", [
-    {"university": "Hogwarts"},
-    {"field_of_study": "Astrology"},
     {"year": 0}, {"year": 6},
     {"gpa": 4.01}, {"gpa": -1},
     {"internships": 9},
     {"skills": []},
-    {"skills": ["Cooking"]},
     {"skills": ["Python", "SQL", "React", "Docker", "Java", "JavaScript", "TypeScript", "C++", "Node.js", "Git", "Linux"]},
     {"university": None},
 ])
-def test_profile_uses_fixed_options(client, nusrat, changes):
+def test_profile_refuses_values_outside_the_allowed_range(client, nusrat, changes):
+    """Year, GPA, internships and the number of skills are still fixed ranges — unlike the
+    university, field of study and skill NAMES, which are a growing vocabulary now."""
     assert client.put("/api/profiles/me", headers=as_user(nusrat), json={**PROFILE, **changes}).status_code == 422
+
+
+@pytest.mark.parametrize("changes, kind, term", [
+    ({"university": "Hogwarts"}, "universities", "Hogwarts"),
+    ({"field_of_study": "Astrology"}, "fields_of_study", "Astrology"),
+    ({"skills": ["Cooking"]}, "skills", "Cooking"),
+])
+def test_a_term_nobody_has_used_before_is_accepted_and_becomes_an_option(client, nusrat, changes, kind, term):
+    """These three used to be refused against the fixed lists in options_service.
+
+    They are a database vocabulary now (vocabulary_service): a real resume named a university
+    outside the seeded eight and the value went invisible in the dropdown, so anything an
+    applicant picks or that is read off their resume joins the list for the next person. The
+    seeded values are a starting point, not the whole world.
+    """
+    assert client.put("/api/profiles/me", headers=as_user(nusrat), json={**PROFILE, **changes}).status_code == 200
+    assert term in client.get("/api/options").json()[kind]
 
 
 def test_profile_cleans_up_input(client, nusrat):

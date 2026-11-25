@@ -40,7 +40,10 @@ export default function ApplicantProfile({ preview = false }) {
   const [match, setMatch] = useState(null);
   const [error, setError] = useState('');
   const [viewing, setViewing] = useState(false);
-  const [watching, setWatching] = useState(null); // index into `playlist`
+  const [watching, setWatching] = useState(null); // index into the viewer's items
+  // Edit on the small About card opens the big copy already in edit mode: there is no room
+  // to fill in a form at the size the card is in the row.
+  const [editingAbout, setEditingAbout] = useState(false);
   const [middle, setMiddle] = useState(-1);       // -1 until moved: the start key decides
   const [dir, setDir] = useState('none');        // which way the last move went
   const [moves, setMoves] = useState(0);         // remounts the row so its animation re-runs
@@ -135,9 +138,12 @@ export default function ApplicantProfile({ preview = false }) {
       );
     }
     if (slide.kind === 'about') {
+      const big = slide.big;
       return (
         <AboutCard profile={profile} match={match} options={options ?? undefined}
-          editable={preview} onSaved={setProfile} focusable={isMiddle} />
+          editable={preview} onSaved={setProfile} focusable={isMiddle}
+          startInEdit={big && editingAbout}
+          onRequestEdit={big ? undefined : () => { setEditingAbout(true); setWatching(playlist.length); }} />
       );
     }
     return <ResumeCard profile={profile} onOpen={() => setViewing(true)} focusable={isMiddle} />;
@@ -262,14 +268,15 @@ export default function ApplicantProfile({ preview = false }) {
         </div>
       </main>
       {viewing && <ResumeViewer url={profile.resume_url} name={profile.resume_name} onClose={() => setViewing(false)} />}
-      {watching !== null && playlist[watching] && (
+      {watching !== null && (
         // The viewer pages the same cards the row does, in the same order, so an index means
         // the same thing in both. The resume asks for a wide frame: a resume read in a 9:16
         // column is a resume nobody reads.
-        <VideoViewer videos={playlist} index={watching} onIndex={setWatching} onClose={() => setWatching(null)}
+        <VideoViewer videos={playlist} index={watching} onIndex={setWatching}
+          onClose={() => { setWatching(null); setEditingAbout(false); }}
           extra={[
             { kind: 'sheet', key: 'about', title: `About ${firstName(profile.name)}`, wide: preview,
-              node: cardBody(slides.find((s) => s.kind === 'about'), true) },
+              node: cardBody({ ...slides.find((s) => s.kind === 'about'), big: true }, true) },
             ...(profile.resume_url ? [{
               kind: 'sheet', key: 'resume', title: profile.resume_name || 'Resume.pdf', wide: true,
               node: <iframe className="vv__pdf" src={`${profile.resume_url}#toolbar=0&navpanes=0&view=FitH`}

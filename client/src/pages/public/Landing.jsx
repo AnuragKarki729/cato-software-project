@@ -1,9 +1,10 @@
 // Figma "P1 · Landing" (desktop) and "P1 · Landing (mobile)".
 // UI by Nusrat Begam (6638009). The hero card is an illustration, not live data.
-import { Bookmark, Check, CircleCheck, Play, Search, Send, Video, X } from 'lucide-react';
+import { Bookmark, Check, CircleCheck, Search, Send, Video, X } from 'lucide-react';
 import { homeFor, useAuth } from '../../context/AuthContext.jsx';
 import { Button, Logo } from '../../components/ui/primitives.jsx';
 import glow from '../../assets/figma/landing-glow.svg';
+import jensenVideo from '../../assets/jensen_demo.mp4';
 
 const APPLICANT_STEPS = [
   ['Build your profile', 'Field of study, year, GPA, internships, skills and your resume. About 5 minutes.'],
@@ -92,15 +93,15 @@ export default function Landing() {
         {/* Desktop product visual */}
         <div className="lp-visual" aria-hidden="true">
           <img className="lp-visual__glow" src={glow} alt="" width="680" height="680" />
-          <div className="lp-feed">
-            <span className="lp-feed__initials">LH</span>
+          <div className="lp-feed" onMouseEnter={(e) => { const v = e.currentTarget.querySelector('video'); if (v) { v.currentTime = 0; v.play(); } }} onMouseLeave={(e) => { const v = e.currentTarget.querySelector('video'); if (v) { v.currentTime = 0; } }}>
+            <video className="lp-feed__video" src={jensenVideo} autoPlay muted loop playsInline />
             <span className="lp-feed__shade" />
             <div className="lp-feed__top">
               <span className="lp-feed__kind">Pitch · 0:28</span>
               <span className="lp-pill"><strong>84</strong> match</span>
             </div>
             <div className="lp-feed__details">
-              <p className="lp-feed__name">Lin Htet</p>
+              <p className="lp-feed__name">Jensen Huang</p>
               <p className="lp-feed__meta">Computer Science · Year 3 · GPA 3.85 · 3 internships</p>
               <div className="lp-feed__skills">{['Python', 'SQL', 'Docker'].map((s) => <span key={s}>{s}</span>)}</div>
               <div className="lp-feed__actions">
@@ -112,7 +113,7 @@ export default function Landing() {
           </div>
           <div className="ui-toast lp-toast">
             <CircleCheck />
-            <div className="ui-toast__text"><p className="ui-toast__title">Invitation sent</p><p className="ui-toast__message">Lin Htet will see it on their Invitations page.</p></div>
+            <div className="ui-toast__text"><p className="ui-toast__title">Invitation sent</p><p className="ui-toast__message">Jensen Huang will see it on their Invitations page.</p></div>
             <span className="ui-icon-btn"><X /></span>
           </div>
           <div className="lp-chip">
@@ -125,17 +126,18 @@ export default function Landing() {
           </div>
         </div>
 
-        {/* Mobile pitch card */}
+        {/* Mobile pitch card. Below 1100px the tall visual above is hidden and this stands in
+            for it, so it plays the same clip: a landing page whose whole point is the pitch
+            video should not be showing a still frame on an unmaximised laptop. */}
         <div className="ui-card lp-mobile-card" aria-hidden="true">
           <div className="ui-poster lp-mobile-card__poster">
-            <span className="ui-poster__initials">AM</span>
+            <video className="lp-feed__video" src={jensenVideo} autoPlay muted loop playsInline />
             <span className="ui-poster__shade" />
-            <span className="ui-poster__play"><Play fill="currentColor" strokeWidth={0} /></span>
             <span className="ui-poster__kind">Pitch</span>
             <span className="ui-poster__duration">0:28</span>
           </div>
           <div className="lp-mobile-card__row">
-            <div><p className="lp-step__title">Aye Myo Myat</p><p className="ui-text-xs ui-text-muted">Computer Science · Year 4</p></div>
+            <div><p className="lp-step__title">Jensen Huang</p><p className="ui-text-xs ui-text-muted">Computer Science · Year 3</p></div>
             <span className="lp-pill"><strong>91</strong> match</span>
           </div>
         </div>

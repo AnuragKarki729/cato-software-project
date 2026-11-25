@@ -2,6 +2,8 @@
 # Owner: Nusrat Begum (6638009)
 from pydantic import BaseModel, Field
 
+from app.schemas.video import VideoOut
+
 
 class ScoreParts(BaseModel):
     skills: float  # out of 60
@@ -30,6 +32,14 @@ class MatchResult(BaseModel):
     # so the ranked feed can show them the same way the newest-first feed does.
     pitch_title: str | None = None
     pitch_description: str | None = None
+    # Everything the candidate has, so the ranked feed can swipe sideways through it the way
+    # Explore does: all of their videos with the pitch first, then the resume as the last step.
+    # The four `pitch_*` fields above are the first of these videos, kept because the candidate
+    # profile and the saved-candidate list read them.
+    videos: list[VideoOut] = Field(default_factory=list)
+    resume_url: str | None = None
+    resume_name: str | None = None
+    resume_size: int | None = None
 
 
 class CurrentFilter(BaseModel):

@@ -32,8 +32,25 @@ class ApplicantProfile(SQLModel, table=True):
     # Reading the resume with an LLM runs in the background after the upload, so the applicant
     # never waits: "none" (no resume yet), "pending", "done" or "failed".
     parse_status: str = "none"
+    # Issue #5 — the applicant's own privacy controls, set from Settings.
+    # `hidden` takes them out of every place a profile is listed: the recruiter's ranked
+    # results and Explore, and the other applicants' video feed. It does not delete anything,
+    # and an invitation already sent still stands.
+    hidden: bool = False
+    # Companies this applicant does not want to be seen by, comma separated and compared on
+    # the company name. Those recruiters do not get them in results, Explore or an invitation.
+    blocked_companies: str = ""
     created_at: datetime = Field(default_factory=utcnow, sa_column=Column(DateTime(timezone=False), nullable=False))
     updated_at: datetime = Field(default_factory=utcnow, sa_column=Column(DateTime(timezone=False), nullable=False))
+
+    def blocks(self, company: str | None) -> bool:
+        """Has this applicant blocked that company? Compared without case or spacing, so
+        "Line Company" and "line  company" are the same block."""
+        if not company or not self.blocked_companies:
+            return False
+        wanted = " ".join(company.split()).casefold()
+        return any(" ".join(name.split()).casefold() == wanted
+                   for name in self.blocked_companies.split(",") if name.strip())
 
     @property
     def details_complete(self) -> bool:

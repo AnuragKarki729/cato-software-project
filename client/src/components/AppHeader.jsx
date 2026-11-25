@@ -3,7 +3,7 @@
 // context from Responsibility 7. Other pages can reuse it: <AppHeader />.
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, Bookmark, Compass, Inbox, LogOut, Search, Send, ShieldCheck, User, Video } from 'lucide-react';
+import { Bell, Bookmark, Compass, Inbox, LogOut, Search, Send, ShieldCheck, SlidersHorizontal, User, Video } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Avatar, Button, Dialog, Logo } from './ui/primitives.jsx';
 
@@ -12,6 +12,7 @@ const LINKS = {
     { to: '/profile', label: 'My profile', short: 'Profile', icon: User, match: ['/profile'] },
     { to: '/invitations', label: 'Invitations', short: 'Invitations', icon: Inbox, match: ['/invitations'] },
     { to: '/feed', label: 'Video feed', short: 'Feed', icon: Video, match: ['/feed'] },
+    { to: '/settings', label: 'Settings', short: 'Settings', icon: SlidersHorizontal, match: ['/settings'] },
   ],
   recruiter: [
     { to: '/find', label: 'Find candidates', short: 'Search', icon: Search, match: ['/find', '/results', '/role/'] },

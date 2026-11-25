@@ -5,7 +5,7 @@ from app.database import get_session
 from app.models import ApplicantProfile, User, Video
 from app.schemas.video import ExploreCandidate, ExploreField, ExplorePage, FeedItem
 from app.services import storage_service
-from app.services.auth_service import get_current_recruiter, get_current_user
+from app.services.auth_service import get_current_user
 from app.services.matching_service import split_skills
 from app.routers.videos import as_video_out
 from app.routers.profiles import RESUME_TYPE  # "raw": the Cloudinary resource type for PDFs
@@ -39,6 +39,8 @@ def get_feed(
     # Applicants do not see their own videos; recruiters see everyone's.
     if user.role == "applicant":
         statement = statement.where(Video.applicant_id != user.id)
+    # Issue #5: a hidden applicant, or one who has blocked this recruiter's company, is left out.
+    statement = statement.where(col(Video.applicant_id).not_in(_concealed_ids(session, user)))
 
     statement = statement.order_by(Video.created_at.desc()).offset(offset).limit(10)
 
@@ -55,10 +57,14 @@ def get_feed(
     return feed_items
 
 
-# ---------- Explore candidates (recruiter side) ----------
-# A feed over every applicant who has a pitch, with no filters at all: the recruiter browses
-# instead of searching. Showing everyone at once would be unkind to the server, so the page
-# asks for a few candidates at a time and the row of fields of study narrows it.
+# ---------- Explore candidates ----------
+# A feed over every applicant who has a pitch, with no filters at all: browsing instead of
+# searching. Showing everyone at once would be unkind to the server, so the page asks for a
+# few candidates at a time and the row of fields of study narrows it.
+#
+# Both roles read it. A recruiter sees every candidate; an applicant sees the same feed with
+# themselves left out, which is what /feed does for the plain video list. The client decides
+# what may be done with a candidate — only the recruiter's page offers saving and inviting.
 
 
 def _has_pitch():
@@ -67,9 +73,30 @@ def _has_pitch():
     return select(Video.applicant_id).where(Video.kind == "pitch")
 
 
+def _others(statement, column, user: User):
+    """Leave an applicant out of their own feed. A recruiter is never in it to begin with."""
+    return statement.where(col(column) != user.id) if user.role == "applicant" else statement
+
+
+def _concealed_ids(session: Session, user: User) -> list[int]:
+    """Applicant ids this viewer may NOT see (issue #5): anyone who has hidden themselves, and
+    — for a recruiter — anyone who has blocked their company.
+
+    A deny-list, not an allow-list: an applicant who has uploaded a pitch but has no profile
+    row yet has nothing to hide behind, and listing only the ids found in applicantprofile
+    would have quietly dropped them from the feed.
+
+    The blocks are a comma-separated list of names, matched in Python rather than SQL: the
+    lists are short, and a LIKE would find "Line" inside "Line Company".
+    """
+    company = user.company_name if user.role == "recruiter" else None
+    return [p.user_id for p in session.exec(select(ApplicantProfile)).all()
+            if p.hidden or (company and p.blocks(company))]
+
+
 @router.get("/fields", response_model=list[ExploreField])
 def explore_fields(
-    user: User = Depends(get_current_recruiter),
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     """The tabs for the explore page: every field of study that has a candidate, biggest first.
@@ -77,12 +104,14 @@ def explore_fields(
     Counted from the profiles rather than the vocabulary, so a field nobody studies is not
     offered as an empty tab.
     """
-    rows = session.exec(
+    counted = _others(
         select(ApplicantProfile.field_of_study, func.count(col(ApplicantProfile.user_id)))
         .where(col(ApplicantProfile.field_of_study).is_not(None))
         .where(col(ApplicantProfile.user_id).in_(_has_pitch()))
-        .group_by(col(ApplicantProfile.field_of_study))
-    ).all()
+        .where(col(ApplicantProfile.user_id).not_in(_concealed_ids(session, user))),
+        ApplicantProfile.user_id, user,
+    )
+    rows = session.exec(counted.group_by(col(ApplicantProfile.field_of_study))).all()
     rows = sorted(rows, key=lambda row: (-row[1], row[0]))
     return [ExploreField(field_of_study=field, candidates=count) for field, count in rows]
 
@@ -92,7 +121,7 @@ def explore_candidates(
     field_of_study: str | None = Query(default=None, description="one tab; omit for every field"),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=EXPLORE_LIMIT, ge=1, le=20),
-    user: User = Depends(get_current_recruiter),
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     """One page of candidates, newest pitch first, each with all of their videos.
@@ -107,11 +136,13 @@ def explore_candidates(
         .where(col(Video.applicant_id) == col(User.id), Video.kind == "pitch")
         .scalar_subquery()
     )
-    found = (
+    found = _others(
         select(User.id)
         .join(ApplicantProfile, col(ApplicantProfile.user_id) == col(User.id))
         .where(User.role == "applicant")
         .where(col(User.id).in_(_has_pitch()))
+        .where(col(User.id).not_in(_concealed_ids(session, user))),
+        User.id, user,
     )
     if field_of_study:
         found = found.where(ApplicantProfile.field_of_study == field_of_study)
