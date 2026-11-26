@@ -25,6 +25,6 @@ anyone who uses AI for committed work updates this file in the same pull request
 | Anurag Karki | `AnuragKarki729` | Claude Code (Claude Opus 5) | Rebuilding the applicant Video feed on the Explore layout, opening `/api/feed/explore` to applicants, and fixing the recruiter filter to validate fields of study and skills against the growing vocabulary instead of the frozen seed lists (`routers/matching.py`, Responsibility 5, edited with the group leader's approval) | Co-Write |
 | Nusrat Begum | `NusratBegum` | _to be filled in by the member_ | Responsibilities 2 and 5 | _to be filled in_ |
 | Aye Myo Myat | `avocado-00` | _to be filled in by the member_ | Responsibilities 6 and 7 | _to be filled in_ |
-| Siwakorn P. | `mumoo21` | _to be filled in by the member_ | Responsibilities 4 and 8 | _to be filled in_ |
+| Siwakorn P. | `mumoo21` | Chat GPT | Responsibilities 4 and 8 | CO-write |
 
 Add a new row for each new tool or area of work. Write "None" in the tool column if no AI was used.
