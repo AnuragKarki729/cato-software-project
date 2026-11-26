@@ -45,8 +45,8 @@ export default function FindCandidates() {
     let active = true;
     api.get('/options').then((opts) => { if (active) setOptions(opts); }).catch((err) => active && setError(err.message));
     if (!fromSearch(searchParams)) {
-      api.get('/matching/results?limit=1')
-        .then((page) => { if (active) setFilter(fromApi(page.filter)); })
+      api.get('/filters/me')
+        .then((saved) => { if (active) setFilter(fromApi(saved)); })
         .catch(() => { if (active) setFilter(EMPTY_FILTER); });
     }
     return () => { active = false; };
@@ -101,9 +101,20 @@ export default function FindCandidates() {
     }
   }
 
-  function showMatches(event) {
+  async function showMatches(event) {
     event.preventDefault();
     if (!hasSkills || gpaError) return;
+    try {
+      await api.put('/filters/me', {
+        field_of_study: filter.field_of_study || null,
+        min_year: year,
+        min_gpa: gpa,
+        min_internships: internships,
+        skills: filter.skills,
+      });
+    } catch {
+      // Save failed — still navigate so the recruiter sees results.
+    }
     navigate(`/results?${toQuery(filter)}`);
   }
 
