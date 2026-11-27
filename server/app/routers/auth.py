@@ -4,8 +4,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.database import get_session
-from app.models import ApplicantProfile, AuthSession, RegistrationConsent, User, Video
-from app.schemas.user import LogInIn, SignUpIn, TokenOut, UserOut
+import logging
+
+from app.models import (ApplicantProfile, AuthSession, Bookmark, Invitation, RecruiterFilter,
+                        RegistrationConsent, SavedSearch, User, Video)
+from app.schemas.user import DeleteAccountIn, LogInIn, SignUpIn, TokenOut, UserOut
+from app.services import storage_service
+
+log = logging.getLogger(__name__)
 from app.services.auth_service import (DUMMY_HASH, get_current_session, get_current_user,
                                       hash_password, issue_session, verify_password)
 
@@ -66,6 +72,49 @@ def log_in(body: LogInIn, session: Session = Depends(get_session)):
 @router.get('/me', response_model=UserOut)
 def me(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     return public_user(user, session)
+
+
+@router.delete('/me', status_code=204)
+def delete_account(body: DeleteAccountIn, user: User = Depends(get_current_user),
+                   session: Session = Depends(get_session)):
+    """Settings -> Delete account, for applicants and recruiters alike.
+
+    Removes the account and everything that belongs to it, in one transaction: the profile,
+    videos, invitations sent or received, bookmarks either way round, saved searches, the
+    search filter, the consent record and every login session. Then the video and resume
+    files are removed from Cloudinary. That part is best effort: a storage error is logged,
+    never allowed to leave a half-deleted account behind.
+    """
+    if not verify_password(body.password, user.password_hash):
+        raise HTTPException(status_code=403, detail='That password is not right')
+
+    def rows(model, *conditions):
+        return session.exec(select(model).where(*conditions)).all()
+
+    files: list[tuple[str, str]] = []
+    for video in rows(Video, Video.applicant_id == user.id):
+        files.append((video.file_location, 'video'))
+        session.delete(video)
+    for profile in rows(ApplicantProfile, ApplicantProfile.user_id == user.id):
+        if profile.resume_location:
+            files.append((profile.resume_location, 'raw'))
+        session.delete(profile)
+    for item in [*rows(Invitation, (Invitation.applicant_id == user.id) | (Invitation.recruiter_id == user.id)),
+                 *rows(Bookmark, (Bookmark.applicant_id == user.id) | (Bookmark.recruiter_id == user.id)),
+                 *rows(SavedSearch, SavedSearch.recruiter_id == user.id),
+                 *rows(RecruiterFilter, RecruiterFilter.recruiter_id == user.id),
+                 *rows(RegistrationConsent, RegistrationConsent.user_id == user.id),
+                 *rows(AuthSession, AuthSession.user_id == user.id)]:
+        session.delete(item)
+    session.flush()  # the rows that point at the user go first
+    session.delete(user)
+    session.commit()
+
+    for key, kind in files:
+        try:
+            storage_service.delete(key, kind)
+        except Exception as err:  # noqa: BLE001 - the account is already gone
+            log.warning("could not delete %s from storage: %s", key, err)
 
 
 @router.post('/logout', status_code=204)

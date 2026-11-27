@@ -9,7 +9,8 @@ import { Avatar, Badge, Button } from '../../components/ui/primitives.jsx';
 import { SAMPLE_SENT, routeMissing } from '../../data/samples.js';
 import { score, shortDate, yearLabel } from '../../utils/format.js';
 
-const STATUS = { pending: ['warning', 'Pending'], accepted: ['success', 'Accepted'], declined: ['danger', 'Declined'] };
+// Issue #4: the five states a recruiter sees. "pending" is shown as Sent.
+const STATUS = { pending: ['warning', 'Sent'], viewed: ['info', 'Viewed'], accepted: ['success', 'Accepted'], declined: ['danger', 'Declined'], expired: ['neutral', 'Expired'] };
 
 async function sampleRows() {
   const page = await api.get('/matching/results?limit=6&min_year=1');
@@ -71,7 +72,9 @@ export default function SentInvitations() {
               <div className="si-row" key={row.id}>
                 <span className="si-person">
                   <Avatar name={row.name} />
-                  <span><strong>{row.name}</strong><small>{row.detail}</small></span>
+                  <span><strong>{row.name}</strong><small>{row.detail}</small>
+                    {row.email && <small>Email {row.name} at <a href={`mailto:${row.email}`}>{row.email}</a></small>}
+                    {row.decline_reason && <small className="si-reason">Their reason: “{row.decline_reason}”</small>}</span>
                 </span>
                 <span className="ui-text-soft">Sent {shortDate(row.date)}</span>
                 <span><Badge tone={tone}>{label}</Badge></span>

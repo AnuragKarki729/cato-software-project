@@ -50,6 +50,51 @@ def test_bookmarks_validate_target_and_deduplicate(client, users):
     assert client.get('/api/saved/bookmarks', headers=headers).json() == []
     assert client.delete('/api/saved/bookmarks/999999', headers=headers).status_code == 404
 
+def test_a_bookmark_keeps_the_search_it_was_saved_under(client, users):
+    """The score on a saved card is worked out against the filter that was current when the
+    candidate was bookmarked, and the card carries that filter so the number can be read.
+
+    It used to be scored against whatever filter was current at READ time, so editing your
+    search silently rewrote the score of every candidate you had already saved — and
+    `meets_requirements` flipped with it, making a saved candidate appear to fail a search
+    nobody had run on them.
+    """
+    from app.models import RecruiterFilter
+    headers = as_user(users['recruiter'])
+    with Session(engine) as s:
+        s.add(RecruiterFilter(recruiter_id=users['recruiter']['id'], field_of_study='Computer Science',
+                              min_year=1, min_gpa=0, min_internships=0, skills='Python,SQL'))
+        s.commit()
+
+    saved = client.post('/api/saved/bookmarks', headers=headers,
+                        json={'applicant_id': users['applicant']['id']}).json()
+    assert saved['searched'] is True
+    assert saved['searched_field_of_study'] == 'Computer Science'
+    assert saved['searched_skills'] == ['Python', 'SQL']
+    score_when_saved = saved['match_score']
+
+    # Move the search somewhere completely different.
+    client.put('/api/filters/me', headers=headers, json={
+        'field_of_study': 'Design', 'min_year': 5, 'min_gpa': 4, 'min_internships': 5, 'skills': ['Figma']})
+
+    again = client.get('/api/saved/bookmarks', headers=headers).json()[0]
+    assert again['match_score'] == score_when_saved
+    assert again['searched_field_of_study'] == 'Computer Science'
+    assert again['searched_skills'] == ['Python', 'SQL']
+
+
+def test_a_bookmark_taken_without_a_search_has_no_score(client, users):
+    """Explore has no filter at all, so there is nothing to score against and nothing to show
+    beside a score. Better than a 0 that looks like a bad match."""
+    headers = as_user(users['recruiter'])
+    saved = client.post('/api/saved/bookmarks', headers=headers,
+                        json={'applicant_id': users['applicant']['id']}).json()
+    assert saved['searched'] is False
+    assert saved['match_score'] is None
+    assert saved['meets_requirements'] is None
+    assert saved['searched_skills'] == []
+
+
 def test_recruiter_only_access(client, users):
     for path in ['/api/saved/searches', '/api/saved/bookmarks', '/api/saved/current-filter']:
         assert client.get(path).status_code == 401
@@ -57,10 +102,17 @@ def test_recruiter_only_access(client, users):
     assert client.get('/api/saved/current-filter', headers=as_user(users['recruiter'])).status_code == 404
 
 
-def test_bookmark_details_reuse_existing_matching_and_video_services(client, users):
-    from datetime import datetime, timezone
-    from app.models import ApplicantProfile, Invitation, Video
-    from app.services.matching_service import match_score
+def test_bookmark_details_reuse_existing_matching_and_video_services(client, users, monkeypatch):
+    """A bookmark holds only the pair of ids, so everything shown about the candidate has to
+    be read back through the services that own it: matching for the score, storage for the
+    pitch link, Responsibility 8 for whether they have been invited."""
+    from app.models import ApplicantProfile, Invitation, SavedSearch, Video
+    from app.services import storage_service
+    from app.services.matching_service import match_score, passes_hard_filters, split_skills
+    # Files live in Cloudinary now, so the link is whatever storage_service hands back rather
+    # than the "/api/files/..." path this test was written against.
+    monkeypatch.setattr(storage_service, 'get_url',
+                        lambda key, resource_type='video': f'https://files.test/{key}')
     recruiter, applicant = users['recruiter'], users['applicant']
     headers = as_user(recruiter)
     with Session(engine) as s:
@@ -68,16 +120,27 @@ def test_bookmark_details_reuse_existing_matching_and_video_services(client, use
         s.add(current)
         s.add(Video(applicant_id=applicant['id'], kind='pitch', duration_seconds=12,
                     file_location='test/pitch.mp4'))
+        # The invitation model calls this created_at; the test was written before it existed.
         s.add(Invitation(recruiter_id=recruiter['id'], applicant_id=applicant['id'],
-                         message='Demo invitation', sent_at=datetime.now(timezone.utc)))
+                         message='Demo invitation'))
         s.commit()
         profile = s.exec(select(ApplicantProfile).where(ApplicantProfile.user_id == applicant['id'])).one()
         expected = match_score(profile, current)
+        # Worked out from the seeded profile rather than written in: which skills this
+        # applicant happens to have is seed data, and the thing being tested is that the
+        # bookmark reports the overlap with the recruiter's filter.
+        theirs = split_skills(profile.skills)
+        overlap = [skill for skill in ['Python', 'SQL'] if skill in theirs]
+        passing = sum(passes_hard_filters(p, SavedSearch(**{**BASE, 'skills': ','.join(BASE['skills']),
+                                                            'recruiter_id': recruiter['id']}))
+                      for p in s.exec(select(ApplicantProfile)).all())
     bookmark = client.post('/api/saved/bookmarks', headers=headers, json={'applicant_id': applicant['id']}).json()
     assert bookmark['match_score'] == expected
-    assert bookmark['matched_skills'] == ['Python', 'SQL']
-    assert bookmark['pitch_url'] == '/api/files/test/pitch.mp4'
+    assert bookmark['matched_skills'] == overlap
+    assert bookmark['pitch_url'] == 'https://files.test/test/pitch.mp4'
     assert bookmark['invited'] is True
+    # The address is Responsibility 8's to release, and only once an invitation is accepted.
     assert 'email' not in bookmark
+    # match_count is Responsibility 5's hard filters, not a number this page counts itself.
     saved = client.post('/api/saved/searches', headers=headers, json=BASE).json()
-    assert saved['match_count'] == 1
+    assert saved['match_count'] == passing

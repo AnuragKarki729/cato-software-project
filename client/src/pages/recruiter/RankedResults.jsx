@@ -16,6 +16,7 @@ import useCandidateActions from '../../components/useCandidateActions.jsx';
 import { useGridPager, useSmallScreen, useTouchScreen } from '../../components/useVerticalPager.jsx';
 import Carousel from '../../components/ui/Carousel.jsx';
 import ResumeViewer from '../../components/ui/ResumeViewer.jsx';
+import { AboutCard } from '../../components/ProfileCards.jsx';
 import { ScoreBreakdown } from '../../components/ui/MatchScore.jsx';
 import { Button, IconButton, Tag } from '../../components/ui/primitives.jsx';
 import { fileSize, gpaLabel, internshipsLabel, score, yearLabel } from '../../utils/format.js';
@@ -100,18 +101,25 @@ export default function RankedResults() {
   // Sideways: every video the candidate has, the pitch first, then the resume as the last
   // step. The same shape as Explore, so the gesture means the same thing on both pages.
   const videos = current?.videos ?? [];
+  // After the videos: the About card (standouts, matching skills in green), then the resume.
   const hasResume = !!current?.resume_url;
-  const slots = videos.length + (hasResume ? 1 : 0);
-  const onResume = hasResume && column >= videos.length;
+  const aboutAt = videos.length;
+  const resumeAt = aboutAt + 1;
+  const slots = videos.length + 1 + (hasResume ? 1 : 0);
+  const onAbout = !!current && column === aboutAt;
+  const onResume = hasResume && column === resumeAt;
+  const onSheet = onAbout || onResume;  // the pitch shrinks into the corner beside either
   // Beside the resume it is always the elevator pitch that stays on screen, whichever video
   // the recruiter arrived from: the pitch is the one every candidate has. The server puts it
   // first, and it is the one the match score belongs to.
   const pitch = videos[0];
-  const clip = onResume ? pitch : videos[column];
-  const isResumeSlot = (at) => hasResume && at >= videos.length;
+  const clip = onSheet ? pitch : videos[column];
+  const isSheetSlot = (at) => at >= videos.length;
+  const isResumeSlot = (at) => hasResume && at === resumeAt;
   const prevAt = slots > 1 ? (column - 1 + slots) % slots : -1;
   const nextAt = slots > 1 ? (column + 1) % slots : -1;
-  const slotName = (at) => (isResumeSlot(at) ? `${current.name}'s resume` : videos[at]?.title || 'video');
+  const slotName = (at) => (isResumeSlot(at) ? `${current.name}'s resume`
+    : at === aboutAt ? `About ${current.name}` : videos[at]?.title || 'video');
 
   // A new candidate always starts on their elevator pitch.
   const goRow = useCallback((next) => { setIndex(next); setColumn(0); setPlaying(false); }, []);
@@ -170,7 +178,7 @@ export default function RankedResults() {
     if (!video) return;
     // On a desktop the clip in the feed has its own controls; beside the resume it is a
     // thumbnail without them, so there a click works it on a desktop too.
-    if (!touch && !onResume) return;
+    if (!touch && !onSheet) return;
     if (video.paused) video.play().catch(() => {});
     else video.pause();
   }
@@ -187,7 +195,10 @@ export default function RankedResults() {
   const details = current && (
     <>
       <div className="rf-who">
-        {current.rank && <span className="rf-rank">#{current.rank} match</span>}
+        {/* A close match misses some must-haves: say which, and never give it a rank. */}
+        {current.missed?.length > 0
+          ? <span className="rf-close">Close match · Misses {current.missed.join(', ')}</span>
+          : current.rank && <span className="rf-rank">#{current.rank} match</span>}
         <h2 className="ui-h3">{current.name}</h2>
         <p className="ui-text-soft">
           {current.field_of_study} · {yearLabel(current.year)} · GPA {gpaLabel(current.gpa)} · {internshipsLabel(current.internships)}
@@ -216,7 +227,7 @@ export default function RankedResults() {
           onClick={() => actions.toggleBookmark(current)} />
         {invited
           ? <Button variant="secondary" size="md" icon={Check} disabled>Invited</Button>
-          : <Button variant="accent" size="md" icon={Send} onClick={() => actions.invite(current)}>Invite</Button>}
+          : <Button variant="accent" size="md" icon={Send} onClick={() => actions.invite(current)}>{actions.inviteLabel(current.applicant_id)}</Button>}
       </div>
     </>
   );
@@ -228,7 +239,10 @@ export default function RankedResults() {
         <div className="rf-top">
           <div className="rf-top__row">
             <h1 className="ui-h4" aria-live="polite">
-              {loading ? 'Finding candidates…' : `${total} candidate${total === 1 ? '' : 's'} match`}
+              {loading ? 'Finding candidates…'
+                : data?.close_total > 0
+                  ? `${data.full_total} meet${data.full_total === 1 ? 's' : ''} all must-haves · ${data.close_total} close match${data.close_total === 1 ? '' : 'es'}`
+                  : `${total} candidate${total === 1 ? '' : 's'} match`}
             </h1>
             <div className="rf-top__actions">
               <Button variant="ghost" size="sm" icon={Bookmark} onClick={saveSearch} disabled={!data}>Save search</Button>
@@ -244,7 +258,7 @@ export default function RankedResults() {
 
           {current && (
             <div className="rr-sort">
-              <span><Info aria-hidden="true" />Sorted by match score, then GPA, then newest profile</span>
+              <span><Info aria-hidden="true" />{data?.close_total > 0 ? 'Full matches first, by match score. Then close matches: most must-haves met first' : 'Sorted by match score, then GPA, then newest profile'}</span>
               <span aria-live="polite">Showing {index + 1} of {total}</span>
             </div>
           )}
@@ -267,13 +281,13 @@ export default function RankedResults() {
           <section className="ui-card ui-empty">
             <span className="ui-empty__icon"><SearchX aria-hidden="true" /></span>
             <h2 className="ui-h5">No candidates match these filters</h2>
-            <p className="ui-text-soft">Every applicant missed at least one hard requirement. Try a lower minimum year, GPA or internships, or a different field of study.</p>
+            <p className="ui-text-soft">Nobody meets even one of these must-haves. Try a lower minimum year, GPA or internships, or a different field of study.</p>
             <Button variant="secondary" size="md" icon={SlidersHorizontal} to={editLink}>Edit filters</Button>
           </section>
         )}
 
         {current && (
-          <div className={`rf-stage${onResume ? ' is-resume' : ''}`} {...pager.handlers}>
+          <div className={`rf-stage${onSheet ? ' is-resume' : ''}`} {...pager.handlers}>
             <button type="button" className={`rf-nav${pager.hasAbove ? '' : ' is-off'}`} onClick={() => pager.goRow(-1)}
               aria-label="Previous candidate" disabled={!pager.hasAbove} aria-hidden={!pager.hasAbove}
               tabIndex={pager.hasAbove ? 0 : -1}>
@@ -281,13 +295,13 @@ export default function RankedResults() {
             </button>
 
             <div className="rf-viewport">
-              <div className={`rf-slide pager-slide${onResume ? ' is-resume' : ''}`} key={current.applicant_id} data-direction={pager.slide}>
+              <div className={`rf-slide pager-slide${onSheet ? ' is-resume' : ''}`} key={current.applicant_id} data-direction={pager.slide}>
                 {/* The slivers sit either side of the video, the chevrons on top of them, so
                     nothing covers the picture. Only this middle box moves on a sideways swipe. */}
                 <div className="rf-frame">
                   <Peek side="prev"
-                    video={prevAt >= 0 && !isResumeSlot(prevAt) ? videos[prevAt] : null}
-                    doc={prevAt >= 0 && isResumeSlot(prevAt)}
+                    video={prevAt >= 0 && !isSheetSlot(prevAt) ? videos[prevAt] : null}
+                    doc={prevAt >= 0 && isSheetSlot(prevAt)}
                     label={prevAt >= 0 ? `Back to ${slotName(prevAt)}` : 'Nothing before this'}
                     onClick={() => pager.goColumn(-1)} />
 
@@ -299,10 +313,10 @@ export default function RankedResults() {
                       {clip ? (
                         <div className="rf-clip pager-slide" key={`${current.applicant_id}-${clip.id}`} data-direction={pager.slide}>
                           <video ref={player} src={clip.url} playsInline
-                            controls={!touch && !onResume} loop={touch} onClick={tapVideo}
+                            controls={!touch && !onSheet} loop={touch} onClick={tapVideo}
                             onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
                             aria-label={`${current.name}: ${clip.title}`} />
-                          {(touch || onResume) && (
+                          {(touch || onSheet) && (
                             <button type="button" className="rf-tap" onClick={tapVideo}
                               aria-label={playing ? 'Pause video' : 'Play video'}>
                               {!playing && <span className="rf-tap__icon"><Play fill="currentColor" strokeWidth={0} /></span>}
@@ -314,7 +328,8 @@ export default function RankedResults() {
                           <span className="rf-video__score"><strong>{score(current.match_score)}</strong> match</span>
                           {slots > 1 && (
                             <span className="ex-dots" aria-label={`${column + 1} of ${slots}`}>
-                              {videos.map((item, at) => <i key={item.id} className={!onResume && at === column ? 'is-on' : undefined} />)}
+                              {videos.map((item, at) => <i key={item.id} className={!onSheet && at === column ? 'is-on' : undefined} />)}
+                              <i className={`ex-dots__doc${onAbout ? ' is-on' : ''}`} />
                               {hasResume && <i className={`ex-dots__doc${onResume ? ' is-on' : ''}`} />}
                             </span>
                           )}
@@ -324,6 +339,10 @@ export default function RankedResults() {
                       )}
                     </div>
 
+                    {onAbout && (
+                      <div className="ex-about"><AboutCard profile={current} match={current} /></div>
+                    )}
+
                     {onResume && (
                       <ResumeCard url={current.resume_url} name={current.resume_name}
                         size={current.resume_size} onOpen={() => setViewing(true)} />
@@ -331,14 +350,14 @@ export default function RankedResults() {
                   </div>
 
                   <Peek side="next"
-                    video={nextAt >= 0 && !isResumeSlot(nextAt) ? videos[nextAt] : null}
-                    doc={nextAt >= 0 && isResumeSlot(nextAt)}
+                    video={nextAt >= 0 && !isSheetSlot(nextAt) ? videos[nextAt] : null}
+                    doc={nextAt >= 0 && isSheetSlot(nextAt)}
                     label={nextAt >= 0 ? `On to ${slotName(nextAt)}` : 'Nothing after this'}
                     onClick={() => pager.goColumn(1)} />
                 </div>
 
                 {/* Desktop: always beside the video. Small screens: over it, once tapped. */}
-                <aside className={`rf-side${small ? ' rf-side--overlay' : ''}${small && (playing || onResume) ? ' is-hidden' : ''}`}>
+                <aside className={`rf-side${small ? ' rf-side--overlay' : ''}${small && (playing || onSheet) ? ' is-hidden' : ''}`}>
                   {details}
                 </aside>
               </div>
@@ -364,7 +383,7 @@ export default function RankedResults() {
                 onClick={() => actions.toggleBookmark(current)} />
               {invited
                 ? <Button variant="secondary" size="sm" icon={Check} disabled>Invited</Button>
-                : <Button variant="accent" size="sm" icon={Send} onClick={() => actions.invite(current)}>Invite</Button>}
+                : <Button variant="accent" size="sm" icon={Send} onClick={() => actions.invite(current)}>{actions.inviteLabel(current.applicant_id)}</Button>}
             </>
           } />
       )}

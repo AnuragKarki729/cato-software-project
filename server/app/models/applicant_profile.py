@@ -32,6 +32,10 @@ class ApplicantProfile(SQLModel, table=True):
     # Reading the resume with an LLM runs in the background after the upload, so the applicant
     # never waits: "none" (no resume yet), "pending", "done" or "failed".
     parse_status: str = "none"
+    # Up to 6 short talking points read off the resume ("Built app with 2,000 users"), one per
+    # line. Shown to the applicant as prompts for the pitch video, and to recruiters as the
+    # "Stands out for" pills on the About card. Replaced, not kept, when a new resume arrives.
+    talking_points: str = Field(default="", max_length=1000)
     # Issue #5 — the applicant's own privacy controls, set from Settings.
     # `hidden` takes them out of every place a profile is listed: the recruiter's ranked
     # results and Explore, and the other applicants' video feed. It does not delete anything,

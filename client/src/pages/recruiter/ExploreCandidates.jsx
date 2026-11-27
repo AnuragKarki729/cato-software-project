@@ -22,6 +22,7 @@ import useReveal from '../../components/useReveal.jsx';
 import { useGridPager, useSmallScreen, useTouchScreen } from '../../components/useVerticalPager.jsx';
 import Carousel from '../../components/ui/Carousel.jsx';
 import ResumeViewer from '../../components/ui/ResumeViewer.jsx';
+import { AboutCard } from '../../components/ProfileCards.jsx';
 import { Button, IconButton, Tag } from '../../components/ui/primitives.jsx';
 import { fileSize, gpaLabel, yearLabel } from '../../utils/format.js';
 
@@ -112,24 +113,32 @@ export default function ExploreCandidates() {
   // spinner behind, and the candidate on screen stays up until the new one is ready.
   const loading = !page || (page.field_of_study || ALL) !== field;
 
-  // The resume is one more step to the right, after the last video. Nothing follows it: the
-  // whole profile has its own button, so the end of the row is the end of the row.
+  // After the last video: the About card (the same one the candidate profile shows, standouts
+  // and all), then the resume if there is one. Nothing follows: the whole profile has its own
+  // button, so the end of the row is the end of the row.
   const hasResume = !!current?.resume_url;
-  const slots = videos.length + (hasResume ? 1 : 0);
-  const onResume = hasResume && column >= videos.length;
+  const aboutAt = videos.length;
+  const resumeAt = aboutAt + 1;
+  const slots = videos.length + 1 + (hasResume ? 1 : 0);
+  const onAbout = !!current && column === aboutAt;
+  const onResume = hasResume && column === resumeAt;
+  // About and the resume are both "sheets": the pitch shrinks into the corner beside them.
+  const onSheet = onAbout || onResume;
   // Beside the resume it is always the elevator pitch that stays on screen, whichever video
   // you arrived from: the pitch is the one every candidate has and the one a recruiter wants
   // next to a resume. The server puts it first. A candidate with no video at all — which the
   // explore feed does not currently serve, since it asks for a pitch — gets the resume alone.
   const pitch = videos[0];
-  const clip = onResume ? pitch : videos[column];
+  const clip = onSheet ? pitch : videos[column];
   // Sideways is a loop, so either neighbour can be a video or the resume. Both are worked out
   // with the same wrap the pager uses, which is what keeps the slivers honest about what the
   // chevron beside them will actually show.
-  const isResumeSlot = (at) => hasResume && at >= videos.length;
+  const isSheetSlot = (at) => at >= videos.length;
+  const isResumeSlot = (at) => hasResume && at === resumeAt;
   const prevAt = slots > 1 ? (column - 1 + slots) % slots : -1;
   const nextAt = slots > 1 ? (column + 1) % slots : -1;
-  const slotName = (at) => (isResumeSlot(at) ? `${current.name}'s resume` : videos[at]?.title || 'video');
+  const slotName = (at) => (isResumeSlot(at) ? `${current.name}'s resume`
+    : at === aboutAt ? `About ${current.name}` : videos[at]?.title || 'video');
 
   // The tabs: only fields that have a candidate, biggest first.
   useEffect(() => {
@@ -193,7 +202,7 @@ export default function ExploreCandidates() {
     if (!element) return;
     // On a desktop the clip in the feed has its own controls; beside the resume it is a
     // thumbnail without them, so there a click works it on a desktop too.
-    if (!touch && !onResume) return;
+    if (!touch && !onSheet) return;
     if (element.paused) element.play().catch(() => {});
     else element.pause();
   }
@@ -207,7 +216,7 @@ export default function ExploreCandidates() {
   // Back goes to the feed and its row opens on the same video. The card is named rather than
   // numbered: the two pages read a candidate's videos from different endpoints, so an index
   // would not mean the same thing on both.
-  const startKey = onResume ? 'resume' : clip ? `v${clip.id}` : '';
+  const startKey = onResume ? 'resume' : onAbout ? 'about' : clip ? `v${clip.id}` : '';
   const profileLink = current
     ? `/role/${current.applicant_id}/profile?from=explore${startKey ? `&start=${startKey}` : ''}`
     : '#';
@@ -258,7 +267,7 @@ export default function ExploreCandidates() {
           onClick={() => actions.toggleBookmark(current)} />
         {invited
           ? <Button variant="secondary" size="md" icon={Check} disabled>Invited</Button>
-          : <Button variant="accent" size="md" icon={Send} onClick={() => actions.invite(current)}>Invite</Button>}
+          : <Button variant="accent" size="md" icon={Send} onClick={() => actions.invite(current)}>{actions.inviteLabel(current.applicant_id)}</Button>}
       </div>
     </>
   );
@@ -308,7 +317,7 @@ export default function ExploreCandidates() {
         {current && (
           <div className="ex-stage">
             <div className="ex-viewport">
-              <div className={`ex-row${onResume ? ' is-resume' : ''}`} {...pager.handlers}>
+              <div className={`ex-row${onSheet ? ' is-resume' : ''}`} {...pager.handlers}>
                 {/* All four chevrons hug the video: up and down above and below it, left and
                     right on the slivers beside it, none of them over the picture. */}
                 <div className="ex-column">
@@ -320,8 +329,8 @@ export default function ExploreCandidates() {
 
                   <div className="ex-frame">
                     <Peek side="prev"
-                      video={prevAt >= 0 && !isResumeSlot(prevAt) ? videos[prevAt] : null}
-                      doc={prevAt >= 0 && isResumeSlot(prevAt)}
+                      video={prevAt >= 0 && !isSheetSlot(prevAt) ? videos[prevAt] : null}
+                      doc={prevAt >= 0 && isSheetSlot(prevAt)}
                       label={prevAt >= 0 ? `Back to ${slotName(prevAt)}` : 'Nothing before this'}
                       onClick={() => pager.goColumn(-1)} />
 
@@ -332,10 +341,10 @@ export default function ExploreCandidates() {
                         <div className="ex-clip">
                           <div className="ex-video pager-slide" key={`${current.applicant_id}-${clip.id}`} data-direction={pager.slide}>
                             <video ref={player} src={clip.url} playsInline
-                              controls={!touch && !onResume} loop={touch}
+                              controls={!touch && !onSheet} loop={touch}
                               onClick={tapVideo} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
                               aria-label={`${current.name}: ${clip.title}`} />
-                            {(touch || onResume) && (
+                            {(touch || onSheet) && (
                               // The icon follows the element, not the details flag: beside the
                               // resume the clip is stopped without the details being up.
                               <button type="button" className="ex-tap" onClick={tapVideo}
@@ -346,7 +355,8 @@ export default function ExploreCandidates() {
                             <span className="ex-video__title">{clip.title}</span>
                             {slots > 1 && (
                               <span className="ex-dots" aria-label={`${column + 1} of ${slots}`}>
-                                {videos.map((item, at) => <i key={item.id} className={!onResume && at === column ? 'is-on' : undefined} />)}
+                                {videos.map((item, at) => <i key={item.id} className={!onSheet && at === column ? 'is-on' : undefined} />)}
+                                <i className={`ex-dots__doc${onAbout ? ' is-on' : ''}`} />
                                 {hasResume && <i className={`ex-dots__doc${onResume ? ' is-on' : ''}`} />}
                               </span>
                             )}
@@ -354,8 +364,12 @@ export default function ExploreCandidates() {
                         </div>
                       )}
 
-                      {!clip && !onResume && (
+                      {!clip && !onSheet && (
                         <div className="ex-clip"><p className="ex-video__none">No videos</p></div>
+                      )}
+
+                      {onAbout && (
+                        <div className="ex-about"><AboutCard profile={current} /></div>
                       )}
 
                       {onResume && (
@@ -365,8 +379,8 @@ export default function ExploreCandidates() {
                     </div>
 
                     <Peek side="next"
-                      video={nextAt >= 0 && !isResumeSlot(nextAt) ? videos[nextAt] : null}
-                      doc={nextAt >= 0 && isResumeSlot(nextAt)}
+                      video={nextAt >= 0 && !isSheetSlot(nextAt) ? videos[nextAt] : null}
+                      doc={nextAt >= 0 && isSheetSlot(nextAt)}
                       label={nextAt >= 0 ? `On to ${slotName(nextAt)}` : 'Nothing after this'}
                       onClick={() => pager.goColumn(1)} />
                   </div>
@@ -380,7 +394,7 @@ export default function ExploreCandidates() {
 
                 {/* Desktop: beside the video, and it keeps its own scrollbar rather than
                     paging the feed. Phone: over the video, once tapped. */}
-                <aside className={`ex-side${small ? ' ex-side--overlay' : ''}${small && (playing || onResume) ? ' is-hidden' : ''}`}
+                <aside className={`ex-side${small ? ' ex-side--overlay' : ''}${small && (playing || onSheet) ? ' is-hidden' : ''}`}
                   onWheel={small ? undefined : (event) => event.stopPropagation()}>
                   {details}
                 </aside>
@@ -389,7 +403,7 @@ export default function ExploreCandidates() {
 
             <p className="ex-onwards" aria-live="polite">
               {slots > 1 && `${column + 1} of ${slots} · `}
-              {slots > 1 ? `sideways loops through the videos and the resume` : 'one video, nothing sideways'}
+              {slots > 1 ? `sideways loops through the videos, About and the resume` : 'one video, nothing sideways'}
             </p>
           </div>
         )}
@@ -406,7 +420,7 @@ export default function ExploreCandidates() {
                 onClick={() => actions.toggleBookmark(current)} />
               {invited
                 ? <Button variant="secondary" size="sm" icon={Check} disabled>Invited</Button>
-                : <Button variant="accent" size="sm" icon={Send} onClick={() => actions.invite(current)}>Invite</Button>}
+                : <Button variant="accent" size="sm" icon={Send} onClick={() => actions.invite(current)}>{actions.inviteLabel(current.applicant_id)}</Button>}
             </>
           } />
       )}

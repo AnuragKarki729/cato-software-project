@@ -117,7 +117,7 @@
 .au-brand__pitch li svg { width: 20px; height: 20px; color: var(--ui-emerald-500); }
 .au-brand__preview { display: flex; flex-direction: column; gap: 12px; }
 .au-brand__preview p { font-size: 14px; line-height: 20px; opacity: 0.7; }
-.au-brand__poster { width: 100%; height: 180px; }
+.au-brand__poster { align-self: flex-start; width: auto; height: min(300px, 32vh); aspect-ratio: 9 / 16; } /* portrait, like the pitches */
 .au-form-area { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 56px 80px; }
 .au-form { width: 520px; max-width: 100%; }
 .au-stack { display: flex; flex-direction: column; gap: 24px; }
@@ -157,3 +157,5 @@
   .au-roles__options { grid-template-columns: 1fr; }
   .ui-h2 { font-size: 24px; line-height: 32px; }
 }
+/* The sample pitch on sign up and log in: fills the poster like the landing page's feed video. */
+.au-brand__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }

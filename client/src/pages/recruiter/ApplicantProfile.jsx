@@ -6,7 +6,7 @@
 // plug into the "Interested?" card.
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Bookmark, Check, ChevronLeft, ChevronRight, CircleAlert, Lock, Send, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, CircleAlert, Lock, Send, SlidersHorizontal } from 'lucide-react';
 import { api } from '../../api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import AppHeader from '../../components/AppHeader.jsx';
@@ -21,6 +21,42 @@ import { fileSize, firstName, yearLabel } from '../../utils/format.js';
 import { carry } from '../../utils/filters.js';
 
 const notFound = (err) => { if (err.status === 404) return null; throw err; };
+
+// Issue #4: the "Interested?" card follows the invitation through its life.
+//   none              → Invite {name}
+//   pending / viewed  → Invited · Pending approval (Seen by them, once they opened it)
+//   accepted          → Invitation accepted · Email {name} at {email}
+//   declined/expired  → Invitation declined (or expired) · Invite again?
+function InvitationState({ invitation, name, onInvite }) {
+  const first = name.split(' ')[0];
+  const status = invitation?.status;
+  if (status === 'pending' || status === 'viewed') {
+    return (
+      <div className="cp-invite-state">
+        <Badge tone="warning">Invited · Pending approval</Badge>
+        <p className="ui-text-soft">{status === 'viewed' ? `${first} has seen it and not answered yet.` : `Waiting for ${first} to answer.`}</p>
+      </div>
+    );
+  }
+  if (status === 'accepted') {
+    return (
+      <div className="cp-invite-state">
+        <Badge tone="success">Invitation accepted</Badge>
+        <p>Email {name} at <a href={`mailto:${invitation.email}`}>{invitation.email}</a></p>
+      </div>
+    );
+  }
+  if (status === 'declined' || status === 'expired') {
+    return (
+      <div className="cp-invite-state">
+        <Badge tone={status === 'declined' ? 'danger' : 'neutral'}>{status === 'declined' ? 'Invitation declined' : 'Invitation expired'}</Badge>
+        {status === 'declined' && invitation.reason && <p className="ui-text-soft">“{invitation.reason}”</p>}
+        <Button variant="primary" size="lg" icon={Send} block onClick={onInvite}>Invite again?</Button>
+      </div>
+    );
+  }
+  return <Button variant="primary" size="lg" icon={Send} block onClick={onInvite}>Invite {first}</Button>;
+}
 
 export default function ApplicantProfile({ preview = false }) {
   const { user } = useAuth();
@@ -169,7 +205,9 @@ export default function ApplicantProfile({ preview = false }) {
               <div className="cp-head__name">
                 <div className="cp-head__row">
                   <h1 className="ui-h2">{profile.name}</h1>
-                  {match?.rank && <Badge tone="accent" dot={false}>#{match.rank} for your search</Badge>}
+                  {match?.missed?.length > 0
+                    ? <span className="rf-close">Close match · Misses {match.missed.join(', ')}</span>
+                    : match?.rank && <Badge tone="accent" dot={false}>#{match.rank} for your search</Badge>}
                   {match && !match.meets_requirements && <Badge tone="warning">Outside your filters</Badge>}
                 </div>
                 <p className="ui-lead">{[profile.field_of_study, yearLabel(profile.year), profile.university].filter(Boolean).join(' · ')}</p>
@@ -240,13 +278,8 @@ export default function ApplicantProfile({ preview = false }) {
               <section className="ui-card cp-interest" aria-labelledby="interest-title">
                 <h2 id="interest-title" className="ui-h5">Interested?</h2>
                 <p className="ui-text-soft">{firstName(profile.name)} gets a fixed invitation message from you and your company.</p>
-                {actions.isInvited(applicantId) ? (
-                  <Button variant="secondary" size="lg" icon={Check} block disabled>Invited</Button>
-                ) : (
-                  <Button variant="primary" size="lg" icon={Send} block onClick={() => actions.invite({ applicant_id: applicantId, name: profile.name })}>
-                    Invite {firstName(profile.name)}
-                  </Button>
-                )}
+                <InvitationState invitation={actions.invitation(applicantId)} name={profile.name}
+                  onInvite={() => actions.invite({ applicant_id: applicantId, name: profile.name })} />
                 <Button variant="secondary" size="lg" icon={Bookmark} block aria-pressed={actions.isBookmarked(applicantId)}
                   onClick={() => actions.toggleBookmark({ applicant_id: applicantId, name: profile.name })}>
                   {actions.isBookmarked(applicantId) ? 'Bookmarked' : 'Bookmark'}

@@ -5,6 +5,7 @@ import app.models  # registers every table (User, Video, AuthSession, Registrati
 from app.routers import auth, videos, feed, options, profiles, matching, filters, invitations, saved
 from app.database import add_missing_columns, engine
 from app.seed import seed_demo_profiles, seed_if_empty, seed_vocabulary
+from app import seed_snapshot
 
 app = FastAPI(title="Cato Recruitment Platform")
 
@@ -22,6 +23,10 @@ app.add_middleware(
 # database.ADDED_COLUMNS.
 SQLModel.metadata.create_all(engine)
 add_missing_columns()
+# SEED_DATA=true: an empty database starts from the shared snapshot (seed_snapshot.py), so
+# everyone has the same accounts and videos. The seeds below then find nothing to add.
+if seed_snapshot.enabled():
+    seed_snapshot.load_if_empty()
 seed_if_empty()
 seed_vocabulary()  # universities and fields of study, which then grow
 seed_demo_profiles()

@@ -41,5 +41,10 @@ export function AuthProvider({ children }) {
     setToken(null);
     setUser(null);
   }
-  return <AuthContext.Provider value={{ user, loading, login, logout, sessionError }}>{children}</AuthContext.Provider>;
+  // After the account is deleted there is no session left to revoke, so this only forgets it.
+  function forget() {
+    setToken(null);
+    setUser(null);
+  }
+  return <AuthContext.Provider value={{ user, loading, login, logout, forget, sessionError }}>{children}</AuthContext.Provider>;
 }

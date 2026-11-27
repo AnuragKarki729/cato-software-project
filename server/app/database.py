@@ -8,7 +8,12 @@ from app.config import DATABASE_URL
 log = logging.getLogger(__name__)
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(DATABASE_URL, echo=True, connect_args=connect_args)
+# pool_pre_ping: MySQL drops connections that sit idle, and a pooled connection it has dropped
+# fails the next request with 500 "MySQL server has gone away" — whatever that request was
+# (log in, sign up, ...). Pinging first swaps a dead connection for a fresh one instead.
+# pool_recycle retires connections well before MySQL's idle timeout as a second guard.
+engine = create_engine(DATABASE_URL, echo=True, connect_args=connect_args,
+                       pool_pre_ping=True, pool_recycle=1800)
 
 # Columns added to a table that already exists.
 #
@@ -24,6 +29,8 @@ engine = create_engine(DATABASE_URL, echo=True, connect_args=connect_args)
 # Keep a column here AND on the model. This only patches databases that predate it.
 ADDED_COLUMNS = {
     "applicantprofile": {
+        # Talking points the resume read suggests for the pitch, one per line.
+        "talking_points": "VARCHAR(1000) NOT NULL DEFAULT ''",
         # Responsibility 2 (issue #5): the applicant's own privacy controls.
         "hidden": "BOOLEAN NOT NULL DEFAULT 0",
         "blocked_companies": "VARCHAR(600) NOT NULL DEFAULT ''",
@@ -37,6 +44,10 @@ ADDED_COLUMNS = {
         "min_gpa": "FLOAT NOT NULL DEFAULT 0",
         "min_internships": "INTEGER NOT NULL DEFAULT 0",
         "skills": "VARCHAR(600) NOT NULL DEFAULT ''",
+    },
+    "invitation": {
+        # Issue #4: lets the recruiter see "Viewed" between sent and answered.
+        "viewed_at": "DATETIME NULL",
     },
 }
 

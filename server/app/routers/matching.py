@@ -86,11 +86,13 @@ def visible_profiles(session: Session, recruiter: User):
 
 
 def ranked_profiles(session: Session, recruiter_filter: RecruiterFilter, recruiter: User):
-    return matching_service.rank(visible_profiles(session, recruiter), recruiter_filter)
+    """Full matches best first, then the close matches: (profile, score, missed) triples."""
+    return matching_service.rank_with_close(visible_profiles(session, recruiter), recruiter_filter)
 
 
 def to_result(profile: ApplicantProfile, recruiter_filter: RecruiterFilter, rank: int | None,
-              names: dict[int, str], clips: dict[int, list[Video]]) -> MatchResult:
+              names: dict[int, str], clips: dict[int, list[Video]], missed: list[str] | None = None) -> MatchResult:
+    missed = matching_service.missed_requirements(profile, recruiter_filter) if missed is None else missed
     parts = matching_service.score_breakdown(profile, recruiter_filter)
     owned = clips.get(profile.user_id, [])
     # The pitch is first (lookups sorts it there), so it is both the clip the page opens on
@@ -105,12 +107,15 @@ def to_result(profile: ApplicantProfile, recruiter_filter: RecruiterFilter, rank
         gpa=profile.gpa,
         internships=profile.internships,
         skills=matching_service.split_skills(profile.skills),
+        talking_points=[p for p in (profile.talking_points or "").split("\n") if p.strip()],
         matched_skills=parts.matched_skills,
         required_skills_count=len(parts.required_skills),
         match_score=matching_service.match_score(profile, recruiter_filter),
         breakdown=ScoreParts(skills=parts.skills, gpa=parts.gpa, internships=parts.internships),
-        rank=rank,
-        meets_requirements=rank is not None,
+        # "#N for your search" is for full matches only: a close match is shown, never ranked.
+        rank=rank if not missed else None,
+        meets_requirements=not missed,
+        missed=missed,
         pitch_url=storage_service.get_url(pitch.file_location) if pitch else None,
         pitch_duration=pitch.duration_seconds if pitch else None,
         pitch_title=pitch.title if pitch else None,
@@ -147,20 +152,23 @@ def lookups(session: Session, user_ids: list[int]) -> tuple[dict[int, str], dict
 def ranked_results(offset: int = Query(default=0, ge=0), limit: int = Query(default=5, ge=1, le=50),
                    query: FilterQuery = Depends(), user: User = Depends(get_current_recruiter),
                    session: Session = Depends(get_session)):
-    """Load this recruiter's filter, drop applicants who fail a hard filter, score the rest
-    with the project formula and return them best first, one page at a time."""
+    """Load this recruiter's filter and return, best first and a page at a time: everyone who
+    meets every must-have (scored with the project formula), then the close matches, who miss
+    some must-haves but meet at least one. Each close match says what it misses."""
     recruiter_filter = current_filter(session, user, query)
     ranked = ranked_profiles(session, recruiter_filter, user)
+    full_total = sum(1 for _, _, missed in ranked if not missed)
     page = ranked[offset:offset + limit]
-    names, clips = lookups(session, [profile.user_id for profile, _ in page])
-    results = [to_result(profile, recruiter_filter, offset + i + 1, names, clips)
-               for i, (profile, _) in enumerate(page)]
+    names, clips = lookups(session, [profile.user_id for profile, _, _ in page])
+    results = [to_result(profile, recruiter_filter, offset + i + 1, names, clips, missed)
+               for i, (profile, _, missed) in enumerate(page)]
     return RankedResults(
         filter=CurrentFilter(field_of_study=recruiter_filter.field_of_study, min_year=recruiter_filter.min_year,
                              min_internships=recruiter_filter.min_internships,
                              skills=matching_service.split_skills(recruiter_filter.skills),
                              min_gpa=recruiter_filter.min_gpa),
-        total=len(ranked), offset=offset, limit=limit, results=results,
+        total=len(ranked), full_total=full_total, close_total=len(ranked) - full_total,
+        offset=offset, limit=limit, results=results,
     )
 
 
@@ -177,7 +185,7 @@ def applicant_result(applicant_id: int, query: FilterQuery = Depends(), user: Us
     if profile.hidden or profile.blocks(user.company_name):
         raise HTTPException(status_code=404, detail="Applicant profile not found")
     ranked = ranked_profiles(session, recruiter_filter, user)
-    rank = next((i + 1 for i, (p, _) in enumerate(ranked) if p.user_id == applicant_id), None)
+    rank = next((i + 1 for i, (p, _, missed) in enumerate(ranked) if p.user_id == applicant_id and not missed), None)
     names, clips = lookups(session, [applicant_id])
     return to_result(profile, recruiter_filter, rank, names, clips)
 

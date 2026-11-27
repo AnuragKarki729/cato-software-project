@@ -1,6 +1,6 @@
 # AI Usage Declaration
 
-Last updated: 2026-11-25
+Last updated: 2026-11-27
 
 This file declares the AI tools used in the Cato project and the extent of their use, as required by
 the supervisor (GitHub issue #2). The rule for keeping it current is in `harness/policy.md` section 4:
@@ -23,8 +23,17 @@ anyone who uses AI for committed work updates this file in the same pull request
 | Anurag Karki | `AnuragKarki729` | Claude Code (Claude Sonnet 5.5, Opus 5, Fable 5.2) | Merging `nusrat-begum/resp-2-5`, reviewing branches and issues, writing `AGENTS.md`, `CLAUDE.md`, `harness/`, the `docs/` corrections and this file | Generate |
 | Anurag Karki | `AnuragKarki729` | Claude Code (Claude Sonnet 5.5, Opus 5, Fable 5.2) | Responsibility 1 and 3 code: the resume parser (`resume_ai_service.py`, OpenRouter), growing vocabularies (`vocabulary_service.py`), issue #3's video limits, titles and captions, in-browser recording, the 9:16 rule, the recruiter Explore feed and its endpoints, the ranked-results feed, the candidate profile's row of cards, and editing the About card in place | Co-Write |
 | Anurag Karki | `AnuragKarki729` | Claude Code (Claude Opus 5) | Rebuilding the applicant Video feed on the Explore layout, opening `/api/feed/explore` to applicants, and fixing the recruiter filter to validate fields of study and skills against the growing vocabulary instead of the frozen seed lists (`routers/matching.py`, Responsibility 5, edited with the group leader's approval) | Co-Write |
+| Anurag Karki | `AnuragKarki729` | Claude Code (Claude Opus 5, Opus 5.5) | Applicant visibility controls (issue #5: Settings, hidden and blocked applicants left out of every list, bookmarks and saved-search counts); invitation states, the Viewed status and the email exchange on acceptance (issue #4); close matches in the ranked results and the any-one-filter rule; switching the resume reader to Claude Haiku 5.5 with field-of-study picking and talking points; the "Stands out for" pills and the About card in Explore and Ranked results; the video and review page redesigns; the startup column migration and the shared seed snapshot (`seed_snapshot.py`); fixing the "MySQL server has gone away" errors; the tests for all of these; the presentation deck and presenter scripts. Responsibilities 2, 4, 5, 6 and 8 code was edited with the group leader's approval. | Co-Write |
 | Nusrat Begum | `NusratBegum` | _to be filled in by the member_ | Responsibilities 2 and 5 | _to be filled in_ |
 | Aye Myo Myat | `avocado-00` | _to be filled in by the member_ | Responsibilities 6 and 7 | _to be filled in_ |
 | Siwakorn P. | `mumoo21` | _to be filled in by the member_ | Responsibilities 4 and 8 | _to be filled in_ |
 
 Add a new row for each new tool or area of work. Write "None" in the tool column if no AI was used.
+
+## AI inside the product
+
+Separate from the tools used to build Cato, the app itself calls one AI model:
+
+| Feature | Model | What it does | Safeguards |
+|---|---|---|---|
+| Reading an uploaded resume (`server/app/services/resume_ai_service.py`) | Claude Haiku 5.5 (`claude-haiku-5-5`) through Anthropic's API, low effort. Earlier versions used `qwen3-coder-30b-a3b-instruct` through OpenRouter. | Fills the blank profile fields (university, field of study, year, GPA, internships, skills) and suggests up to six talking points, from the resume's text | Only the extracted text is sent, never the PDF. Field of study can only be one of the app's own fields. Every value is re-checked before saving, and only empty fields are filled, so nothing the applicant typed is overwritten. The applicant reviews everything before finishing. Matching and ranking use a fixed formula, not AI. |

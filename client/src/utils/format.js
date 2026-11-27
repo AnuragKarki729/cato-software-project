@@ -2,6 +2,17 @@
 
 export const yearLabel = (year) => (year === 5 ? 'Graduated' : year ? `Year ${year}` : '—');
 
+/** A GPA as typed, tidied: leading zeros gone and rounded to two decimals ("0001.00" -> "1.00",
+ *  "3.456" -> "3.46"). Blank stays blank; anything that is not a number is returned as typed,
+ *  so the field's own check can say what is wrong with it. */
+export function tidyGpa(value) {
+  const text = String(value ?? '').trim();
+  if (text === '') return '';
+  if (!/^\d*\.?\d*$/.test(text) || text === '.') return text;
+  // Exponent arithmetic rounds 1.005 to 1.01; multiplying by 100 would give 1.00.
+  return Number(`${Math.round(Number(`${Number(text)}e2`))}e-2`).toFixed(2);
+}
+
 export const gpaLabel = (gpa) => (gpa === null || gpa === undefined ? '—' : Number(gpa).toFixed(2));
 
 export const internshipsLabel = (count) => {

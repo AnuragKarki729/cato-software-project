@@ -1,16 +1,19 @@
 """Responsibility 2 (AI assist) — Anurag Karki (6838852): reading a resume with an LLM.
 
 The applicant uploads a PDF and carries straight on to the video step. Parsing runs in the
-background through OpenRouter, and the profile fields are already filled in by the time the
-applicant looks at them. Nothing in the UI waits on this.
+background through Claude (Anthropic's API, config.CLAUDE_MODEL), and the profile fields are
+already filled in by the time the applicant looks at them. Nothing in the UI waits on this.
 
-Scope: the PROFILE fields only - university, year, gpa, internships, skills. The video side
+Scope: the PROFILE fields - university, field of study, year, gpa, internships, skills - and
+up to six talking points for the pitch video, all from the same single call. The video side
 (title and caption) is written by the applicant and is never AI generated.
 
 Design decisions recorded in harness/project-context.md:
-  - The model returns CANONICAL values ("Python", not "ReactJS"); the list of known options is
+  - The model returns CANONICAL values ("Python", not "ReactJS"); the skills list is
     deliberately NOT sent, because it would grow the context on every resume.
-  - field_of_study is never parsed. The applicant always chooses it themselves.
+  - field_of_study is the exception: recruiters filter on it exactly, so the model may only
+    PICK one of the app's own fields (a short list, sent as an enum the API enforces), or
+    leave it empty. It never writes one of its own. The applicant confirms it on review.
   - Arrays are capped. A resume yields at most MAX_SKILLS skills.
   - Anything the resume does not clearly state comes back as null, never a guess.
   - A resume is untrusted input. The guard against planted instructions sits AFTER the resume
@@ -26,13 +29,15 @@ from app.services.options_service import MAX_SKILLS
 log = logging.getLogger(__name__)
 
 MAX_RESUME_CHARS = 12000  # roughly 3k tokens; longer resumes are truncated before sending
+MAX_TALKING_POINTS = 6  # suggestions for the pitch video, shown on the video step
+MAX_POINT_CHARS = 60
 
 
-# The shape the model must return. Also usable as an OpenRouter json_schema response_format.
+# The shape the model must return. api_schema() derives the copy sent to the API.
 OUTPUT_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["university", "year", "gpa", "internships", "skills"],
+    "required": ["university", "year", "gpa", "internships", "skills", "talking_points"],
     "properties": {
         "university": {
             "type": ["string", "null"],
@@ -58,6 +63,12 @@ OUTPUT_SCHEMA = {
             "maxItems": MAX_SKILLS,
             "items": {"type": "string"},
             "description": "Canonical technical skill names, most relevant first.",
+        },
+        "talking_points": {
+            "type": "array",
+            "maxItems": MAX_TALKING_POINTS,
+            "items": {"type": "string"},
+            "description": "Up to 6 short things worth mentioning in a 20-second pitch video.",
         },
     },
 }
@@ -100,7 +111,19 @@ Rules:
 6. internships counts internships, co-ops and professional placements. Part-time jobs unrelated
    to their field, and university coursework, do not count. Return 0 if there are none and null
    only if you cannot tell.
-7. Do NOT return a field of study. The applicant chooses that themselves.
+7. "field_of_study" must be one of the allowed values in the response format, exactly as
+   written there: the one that best matches the applicant's degree or major. If the degree
+   does not clearly fit any of them, return null. Never guess from hobbies, projects or jobs.
+8. "talking_points": up to {MAX_TALKING_POINTS} things that make THIS applicant stand out to a
+   recruiter: concrete achievements, strongest skills put to use, notable roles. Each is the
+   CORE value only, in as few words as possible (2 to 6), leading with the result or what was
+   achieved rather than describing the activity. For example:
+     "Built app with 2,000 users"     not "Created CampusEats, a React app used by 2,000 students"
+     "30% faster search at Agoda"     not "Software engineering intern who improved load time"
+     "Hackathon runner-up"            not "2nd place, Bangkok Hackathon 2024"
+     "Led 4-person capstone team"     not "Capstone project team leader for hospital system"
+   Prefer results with numbers. Never repeat the university or GPA, never invent anything, and
+   return fewer, or an empty array, if the resume has little that stands out.
 """
 
 
@@ -149,41 +172,41 @@ def extract_text(pdf_bytes: bytes) -> str:
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
-async def ask_model(resume_text: str) -> dict:
-    """Send the resume to OpenRouter and return the cleaned fields.
+async def ask_model(resume_text: str, fields: list[str] | tuple = ()) -> dict:
+    """Send the resume to Claude and return the cleaned fields.
 
-    Raises RuntimeError if the service is unreachable or answers with an error, and
-    ValueError if the reply is not usable JSON. The caller records the failure and leaves
-    the profile for the applicant to fill in by hand.
+    Raises RuntimeError if the API is unreachable, answers with an error, or declines, and
+    ValueError if the reply is not usable JSON. The caller records the failure and leaves the
+    profile for the applicant to fill in by hand.
     """
-    import httpx
+    import anthropic
 
-    from app.config import OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_TIMEOUT, OPENROUTER_URL
+    from app.config import CLAUDE_API_KEY, CLAUDE_MODEL, CLAUDE_TIMEOUT
 
-    if not OPENROUTER_API_KEY:
-        raise RuntimeError("no OpenRouter API key configured")
+    if not CLAUDE_API_KEY:
+        raise RuntimeError("no Claude API key configured (CLAUDE_API_KEY)")
 
-    body = build_request(resume_text, OPENROUTER_MODEL)
-    headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"}
+    client = anthropic.AsyncAnthropic(api_key=CLAUDE_API_KEY, timeout=CLAUDE_TIMEOUT)
+    try:
+        response = await client.messages.create(**build_request(resume_text, CLAUDE_MODEL, fields))
+    except anthropic.APIStatusError as err:  # 4xx / 5xx: the message carries the real reason
+        raise RuntimeError(f"Claude answered {err.status_code}: {str(err.message)[:300]}") from err
+    except anthropic.APIConnectionError as err:
+        raise RuntimeError(f"could not reach Claude: {err}") from err
 
-    async with httpx.AsyncClient(timeout=OPENROUTER_TIMEOUT) as http:
-        response = await http.post(OPENROUTER_URL, json=body, headers=headers)
+    if response.stop_reason == "refusal":
+        raise RuntimeError("Claude declined to read this resume")
+    if response.stop_reason == "max_tokens":
+        raise ValueError("Claude ran out of room before finishing the answer")
 
-    if response.status_code != 200:
-        # The body carries the real reason (rate limit, guardrail, unknown model).
-        raise RuntimeError(f"OpenRouter answered {response.status_code}: {response.text[:300]}")
-
-    payload = response.json()
-    choices = payload.get("choices") or []
-    if not choices:
-        raise RuntimeError(f"OpenRouter returned no choices: {str(payload)[:300]}")
-
-    log.info("resume parsed by %s", payload.get("model"))
-    return clean(parse_output(choices[0].get("message", {}).get("content") or ""))
+    log.info("resume parsed by %s (%s in, %s out)", response.model,
+             response.usage.input_tokens, response.usage.output_tokens)
+    text = next((block.text for block in response.content if block.type == "text"), "")
+    return clean(parse_output(text), fields)
 
 
 def build_messages(resume_text: str) -> list[dict]:
-    """The chat messages to send to OpenRouter."""
+    """The system prompt and the user message, as chat messages."""
     text = (resume_text or "").strip()
     if len(text) > MAX_RESUME_CHARS:
         text = text[:MAX_RESUME_CHARS]
@@ -193,27 +216,59 @@ def build_messages(resume_text: str) -> list[dict]:
     ]
 
 
-def build_request(resume_text: str, model: str) -> dict:
-    """The POST body for OpenRouter's chat completions endpoint.
+def api_schema(schema: dict = OUTPUT_SCHEMA, fields: list[str] | tuple = ()) -> dict:
+    """OUTPUT_SCHEMA as the API's structured outputs accept it.
 
-    temperature 0 because this is extraction, not writing: the same resume should give the
-    same answer twice. response_format asks for the schema directly; the reply still goes
-    through parse_output(), which copes if the model ignores it.
-
-    reasoning is switched off deliberately. Several models think before answering, and with it
-    on they spend the whole completion budget reasoning and return empty content
-    (finish_reason "length"). This job needs extraction, not deliberation. Models that do not
-    support the parameter simply ignore it.
+    The API refuses numeric and array limits (minimum, maximum, maxItems) and wants a nullable
+    field spelled as anyOf. Nothing is lost by dropping the limits here: clean() enforces every
+    one of them on the answer, as it would for any model.
     """
+    if fields:
+        # Field of study: one of the app's own values, or null. An enum the API enforces, so
+        # the model cannot answer with a field the recruiters' filter does not know.
+        out = api_schema(schema)
+        out["properties"]["field_of_study"] = {
+            "anyOf": [{"type": "string", "enum": list(fields)}, {"type": "null"}],
+            "description": "The applicant's field of study, chosen from this list, or null.",
+        }
+        out["required"] = [*out["required"], "field_of_study"]
+        return out
+    if isinstance(schema, list):
+        return [api_schema(item) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+    out = {}
+    for key, value in schema.items():
+        if key in {"minimum", "maximum", "maxItems", "minItems", "exclusiveMinimum", "exclusiveMaximum"}:
+            continue
+        out[key] = api_schema(value)
+    kind = out.get("type")
+    if isinstance(kind, list):  # "type": ["string", "null"] -> anyOf, keeping the description
+        description = out.pop("description", None)
+        out.pop("type")
+        out = {"anyOf": [{"type": t} for t in kind], **out}
+        if description:
+            out["description"] = description
+    return out
+
+
+def build_request(resume_text: str, model: str, fields: list[str] | tuple = ()) -> dict:
+    """Keyword arguments for client.messages.create().
+
+    Structured outputs make the reply the JSON object and nothing else; parse_output() still
+    copes if it is not. Effort is low because this is extraction, not deliberation: thinking
+    stays at a minimum, which keeps it fast and cheap. No temperature: current models reject
+    non-default sampling settings.
+    """
+    messages = build_messages(resume_text)
     return {
         "model": model,
-        "messages": build_messages(resume_text),
-        "temperature": 0,
-        "max_tokens": 1000,
-        "reasoning": {"enabled": False},
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": {"name": "resume", "strict": True, "schema": OUTPUT_SCHEMA},
+        "max_tokens": 4000,
+        "system": messages[0]["content"],
+        "messages": messages[1:],
+        "output_config": {
+            "effort": "low",
+            "format": {"type": "json_schema", "schema": api_schema(fields=fields)},
         },
     }
 
@@ -245,13 +300,26 @@ def parse_output(content: str) -> dict:
     return data
 
 
-def clean(data: dict) -> dict:
+def clean(data: dict, fields: list[str] | tuple = ()) -> dict:
     """Make the model's output safe to write to the profile.
 
     The model is instructed, not trusted: every value is re-checked here, out-of-range numbers
-    become None rather than clamped silently, and field_of_study is dropped if it appears.
+    become None rather than clamped silently, and a field_of_study is kept only if it is
+    exactly one of the app's fields (the ones that were offered).
     """
     out: dict = {}
+
+    points: list[str] = []
+    for point in data.get("talking_points") or []:
+        if not isinstance(point, str):
+            continue
+        text = " ".join(point.split()).strip(" .-•")[:MAX_POINT_CHARS]
+        if text and text.casefold() not in {p.casefold() for p in points}:
+            points.append(text)
+    out["talking_points"] = points[:MAX_TALKING_POINTS]
+
+    field = data.get("field_of_study")
+    out["field_of_study"] = field if isinstance(field, str) and field in fields else None
 
     university = data.get("university")
     out["university"] = university.strip()[:200] if isinstance(university, str) and university.strip() else None

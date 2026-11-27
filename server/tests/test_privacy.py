@@ -216,3 +216,43 @@ def test_privacy_settings_are_not_shown_to_anyone_else(client, users, storage, c
     seen = client.get(f"/api/profiles/{candidate['id']}", headers=as_user(users["recruiter"])).json()
     assert seen["hidden"] is False
     assert seen["blocked_companies"] == []
+
+
+# ---------- bookmarks and saved searches (issue #5) ----------
+
+def bookmark_ids(client, user):
+    return [b["applicant_id"] for b in client.get("/api/saved/bookmarks", headers=as_user(user)).json()]
+
+
+def test_a_hidden_applicant_drops_out_of_bookmarks_and_comes_back(client, users, storage, candidate):
+    """The bookmark row is kept, so unhiding brings it back rather than losing it."""
+    recruiter = users["recruiter"]
+    assert client.post("/api/saved/bookmarks", json={"applicant_id": candidate["id"]},
+                       headers=as_user(recruiter)).status_code == 201
+    assert candidate["id"] in bookmark_ids(client, recruiter)
+    hide(client, candidate)
+    assert candidate["id"] not in bookmark_ids(client, recruiter)
+    hide(client, candidate, hidden=False)
+    assert candidate["id"] in bookmark_ids(client, recruiter)
+
+
+def test_a_blocked_company_cannot_bookmark_or_keep_a_bookmark(client, users, storage, candidate, rivals):
+    blocked, other = rivals
+    body = {"applicant_id": candidate["id"]}
+    assert client.post("/api/saved/bookmarks", json=body, headers=as_user(blocked)).status_code == 201
+    hide(client, candidate, hidden=False, blocked=[blocked["company_name"]])
+    # The bookmark they already had disappears, and a new one gets the same 404 as "not found".
+    assert candidate["id"] not in bookmark_ids(client, blocked)
+    assert client.post("/api/saved/bookmarks", json=body, headers=as_user(blocked)).status_code == 404
+    # Another company is unaffected.
+    assert client.post("/api/saved/bookmarks", json=body, headers=as_user(other)).status_code == 201
+    assert candidate["id"] in bookmark_ids(client, other)
+
+
+def test_a_hidden_applicant_is_not_counted_in_saved_searches(client, users, storage, candidate):
+    recruiter = users["recruiter"]
+    before = client.post("/api/saved/searches", json={"name": "Everyone"},
+                         headers=as_user(recruiter)).json()["match_count"]
+    hide(client, candidate)
+    after = client.get("/api/saved/searches", headers=as_user(recruiter)).json()[0]["match_count"]
+    assert after == before - 1

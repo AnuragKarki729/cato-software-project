@@ -16,6 +16,12 @@ Example from the document: required Python, React and SQL; the applicant has Pyt
 React, a 3.2 GPA and 1 internship -> 40 + 16 + 6.7 = 62.7.
 
 Ties are broken by the higher GPA, then by the newest profile.
+
+Close matches (rank_with_close): when few or none pass step 1, the recruiter still sees who
+came closest. A close match misses one or more of the must-haves the recruiter actually set
+but meets at least one of them; they come after every full match, most must-haves met first,
+then by score. A must-have left at its default (any field, year 1, GPA 0, no internships) is
+not "set", so meeting it proves nothing and does not count.
 """
 from dataclasses import dataclass
 
@@ -59,6 +65,26 @@ def passes_hard_filters(profile, recruiter_filter) -> bool:
     return True
 
 
+def requirement_checks(profile, recruiter_filter) -> list[tuple[str, bool]]:
+    """(must-have, met?) for each must-have the recruiter actually set. Needs a complete profile."""
+    f = recruiter_filter
+    checks = []
+    if f.field_of_study:
+        checks.append(("Field of study", profile.field_of_study == f.field_of_study))
+    if (f.min_year or 1) > 1:
+        checks.append(("Year of study", profile.year >= f.min_year))
+    if (f.min_gpa or 0) > 0:
+        checks.append(("GPA", profile.gpa >= f.min_gpa))
+    if (f.min_internships or 0) > 0:
+        checks.append(("Internships", profile.internships >= f.min_internships))
+    return checks
+
+
+def missed_requirements(profile, recruiter_filter) -> list[str]:
+    """The set must-haves this applicant does not meet: [] for a full match."""
+    return [name for name, met in requirement_checks(profile, recruiter_filter) if not met]
+
+
 def score_breakdown(profile, recruiter_filter) -> Breakdown:
     """Step 2, part by part, so the candidate page can show where the score comes from."""
     required = split_skills(recruiter_filter.skills)
@@ -93,3 +119,19 @@ def rank(profiles, recruiter_filter) -> list[tuple[object, float]]:
     scored = [(p, match_score(p, recruiter_filter)) for p in profiles if passes_hard_filters(p, recruiter_filter)]
     scored.sort(key=lambda pair: (pair[1], pair[0].gpa, pair[0].created_at, pair[0].id or 0), reverse=True)
     return scored
+
+
+def rank_with_close(profiles, recruiter_filter) -> list[tuple[object, float, list[str]]]:
+    """rank(), then the close matches after it. Returns (profile, score, missed) triples;
+    missed is [] for a full match and names the must-haves a close match falls short on."""
+    full = [(p, score, []) for p, score in rank(profiles, recruiter_filter)]
+    close = []
+    for p in profiles:
+        if not p.details_complete:
+            continue
+        checks = requirement_checks(p, recruiter_filter)
+        met = sum(ok for _, ok in checks)
+        if met and met < len(checks):  # misses something, but meets at least one must-have
+            close.append((p, match_score(p, recruiter_filter), [name for name, ok in checks if not ok], met))
+    close.sort(key=lambda item: (item[3], item[1], item[0].gpa, item[0].created_at, item[0].id or 0), reverse=True)
+    return full + [(p, score, missed) for p, score, missed, _ in close]

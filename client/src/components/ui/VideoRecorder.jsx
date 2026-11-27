@@ -64,7 +64,17 @@ export default function VideoRecorder({ maxSeconds = 60, onRecorded, onCancel })
         setState('error');
       }
     })();
-    return () => { cancelled = true; stopCamera(); };
+    // Closed from outside (e.g. the applicant chose a file instead): throw the half-recorded
+    // clip away. Without detaching onstop, stopping the camera ends the recorder, which hands
+    // the partial clip to onRecorded and it would replace the file they just picked.
+    return () => {
+      cancelled = true;
+      if (recorder.current) {
+        recorder.current.onstop = null;
+        if (recorder.current.state === 'recording') recorder.current.stop();
+      }
+      stopCamera();
+    };
   }, [stopCamera]);
 
   const finish = useCallback(() => {

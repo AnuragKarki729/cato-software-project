@@ -2,7 +2,7 @@
 //
 // The resume was read in the background while the applicant recorded their pitch, so by now
 // the details are usually waiting. This screen shows them, lets the applicant correct
-// anything, and asks for the one thing the resume is never read for: the field of study.
+// anything. The field of study is picked from the app's own list, so it always needs checking.
 //
 // Three states, and none of them is an error the applicant has to deal with:
 //   pending  the read has not finished; a quiet animation, and the fields fill themselves in
@@ -18,7 +18,7 @@ import OnboardingStepper from '../../components/OnboardingStepper.jsx';
 import SearchSelect from '../../components/ui/SearchSelect.jsx';
 import VideoPoster from '../../components/ui/VideoPoster.jsx';
 import { Button, Logo, SelectField, TextField, Toast } from '../../components/ui/primitives.jsx';
-import { duration as formatDuration, yearLabel } from '../../utils/format.js';
+import { tidyGpa, yearLabel } from '../../utils/format.js';
 
 const EMPTY = { university: '', field_of_study: '', year: '', gpa: '', internships: '', skills: [] };
 
@@ -34,13 +34,18 @@ const toForm = (profile) => profile ? {
 const numberOrNull = (value) => (value === '' || value === null ? null : Number(value));
 
 function gpaError(value) {
-  const text = String(value).trim();
+  const text = tidyGpa(value);
   if (text === '') return '';
   const number = Number(text);
   if (Number.isNaN(number)) return 'Enter your GPA as a number, for example 3.45';
   if (number < 0 || number > 4) return 'GPA must be between 0.00 and 4.00';
   return '';
 }
+
+// The same key the server matches on (vocabulary_service.normalize): case, accents,
+// punctuation and spacing ignored, so "node js" and "Node.JS" are both "Node.js".
+const skillKey = (label) => (label || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase().replace(/[^\p{L}\p{N}_\s]/gu, ' ').replace(/\s+/g, ' ').trim();
 
 export default function OnboardingReview() {
   const { user } = useAuth();
@@ -52,6 +57,12 @@ export default function OnboardingReview() {
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
+  // "+ Add skill": the box being typed in, what happened to the last attempt, and the chip to
+  // pulse when what they typed is a skill they had already picked.
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [skillNote, setSkillNote] = useState('');
+  const [pulse, setPulse] = useState(null);
   const closeToast = useCallback(() => setToast(null), []);
   const touchedRef = useRef(false);
 
@@ -106,6 +117,39 @@ export default function OnboardingReview() {
     }));
     setErrors((current) => ({ ...current, skills: undefined }));
   }
+
+  function addSkill() {
+    const label = draft.replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (!label) { setAdding(false); return; }
+    const key = skillKey(label);
+    if (!key) { setSkillNote('Type the name of a skill.'); return; }
+    const max = options.max_skills;
+    const existing = [...options.skills, ...form.skills].find((skill) => skillKey(skill) === key);
+    if (existing && form.skills.includes(existing)) {
+      setSkillNote(`${existing} already exists and is already selected.`);
+      setPulse({ skill: existing, n: Date.now() });
+    } else if (existing && form.skills.length >= max) {
+      setSkillNote(`${existing} already exists. You have ${max} skills already; remove one to pick it.`);
+    } else if (existing) {
+      toggleSkill(existing);
+      setSkillNote(`${existing} already exists, so we selected it.`);
+    } else if (form.skills.length >= max) {
+      setSkillNote(`You have ${max} skills already. Remove one to add another.`);
+      return; // keep what they typed
+    } else {
+      // New to everyone: it goes in as typed, and the server adds it to the shared list on save.
+      toggleSkill(label);
+      setSkillNote(`Added ${label}.`);
+    }
+    setDraft('');
+    setAdding(false);
+  }
+
+  useEffect(() => {
+    if (!pulse) return undefined;
+    const timer = setTimeout(() => setPulse(null), 1400);
+    return () => clearTimeout(timer);
+  }, [pulse]);
 
   function validate() {
     const next = {};
@@ -162,13 +206,13 @@ export default function OnboardingReview() {
 
   const list = (values, label = String) => values.map((value) => ({ value, label: label(value) }));
 
-  // A field the read finished without filling: say so plainly rather than leaving an empty
-  // box the applicant has to puzzle over. Once they fill it in, the marker goes away.
-  const read = status === 'done' || status === 'failed';
-  const notFound = (field) => read && (profile?.[field] === null || profile?.[field] === undefined)
-    && (form[field] === '' || form[field] === null);
-  const missing = (field) => (notFound(field)
-    ? <p className="ui-missing"><CircleAlert />Not found on your resume</p>
+  // Every field shows where it stands once the read is over: a dusty green border when it has
+  // a value, a dusty red one and a line asking for it when it does not. Nothing turns red while
+  // the resume is still being read, or the page would flash red for those few seconds.
+  const empty = (field) => form[field] === '' || form[field] === null || form[field] === undefined;
+  const state = (field) => (waiting ? '' : empty(field) ? ' is-empty' : ' is-filled');
+  const prompt = (field, ask) => (!waiting && empty(field) && !errors[field]
+    ? <p className="rv-prompt"><CircleAlert aria-hidden="true" />{ask}</p>
     : null);
 
   const max = options.max_skills;
@@ -186,20 +230,19 @@ export default function OnboardingReview() {
             <p className="ui-lead">
               {waiting ? 'We are reading your resume. Your details will appear here in a moment, and you can change anything.'
                 : status === 'failed' ? 'We could not read your resume this time, so please fill these in yourself. Your resume and your pitch are saved.'
-                : 'These came from your resume. Change anything that is not right, then pick your field of study.'}
+                : 'These came from your resume. Change anything that is not right.'}
             </p>
           </div>
 
-          {/* The pitch they just recorded. It never plays on its own. */}
+          {/* The pitch they just recorded: the words on the left, one line each, the video on
+              the right. Hovering plays it, muted, the whole way through. */}
           <section className="ui-card ob-card rv-video" aria-labelledby="pitch-title">
-            <div>
-              <h2 id="pitch-title" className="ui-h4">Your pitch</h2>
-              <p className="ui-text-soft">
-                {video ? `${video.title} · ${formatDuration(video.duration_seconds)}` : 'No pitch video found.'}
-                {video?.description ? ` · ${video.description}` : ''}
-              </p>
+            <div className="rv-video__text">
+              <h2 id="pitch-title" className="ui-h4 rv-line">Your pitch</h2>
+              <p className="rv-line rv-video__title">{video ? video.title : 'No pitch video found.'}</p>
+              {video?.description && <p className="rv-line rv-video__caption ui-text-soft">{video.description}</p>}
             </div>
-            <VideoPoster size="tile" src={video?.url} kind="Pitch" seconds={video?.duration_seconds}
+            <VideoPoster size="tile" src={video?.url} kind="Pitch" preview previewSeconds={Infinity}
               name={user.name} label="your pitch video" emptyText="No pitch video yet" />
           </section>
 
@@ -214,31 +257,41 @@ export default function OnboardingReview() {
               )}
             </div>
 
-            <SearchSelect label="University" value={form.university} onChange={set('university')}
-              placeholder="Search for your university" options={options.universities} error={errors.university}
-              note={missing('university')}
-              help={errors.university ? undefined : 'Type to search. If yours is not listed, add it.'} />
+            <div className={`rv-field${state('university')}`}>
+              <SearchSelect label="University" value={form.university} onChange={set('university')}
+                placeholder="Search for your university" options={options.universities} error={errors.university}
+                help={errors.university ? undefined : 'Type to search. If yours is not listed, add it.'} />
+              {prompt('university', 'Please add your university.')}
+            </div>
 
             <div className="ob-grid">
-              <SearchSelect label="Field of study" value={form.field_of_study} onChange={set('field_of_study')}
-                placeholder="Search for your field" options={options.fields_of_study} error={errors.field_of_study}
-                help={errors.field_of_study ? undefined : 'You choose this one: recruiters filter on it exactly.'} />
-              <SelectField label="Year of study" value={form.year} onChange={set('year')}
-                placeholder="Select a year" options={list(options.years, yearLabel)} error={errors.year} />
+              <div className={`rv-field${state('field_of_study')}`}>
+                <SearchSelect label="Field of study" value={form.field_of_study} onChange={set('field_of_study')}
+                  placeholder="Search for your field" options={options.fields_of_study} error={errors.field_of_study}
+                  help={errors.field_of_study ? undefined : 'Recruiters filter on this exactly, so make sure it is right.'} />
+                {prompt('field_of_study', 'Please choose your field of study.')}
+              </div>
+              <div className={`rv-field${state('year')}`}>
+                <SelectField label="Year of study" value={form.year} onChange={set('year')}
+                  placeholder="Select a year" options={list(options.years, yearLabel)} error={errors.year} />
+                {prompt('year', 'Please select your year.')}
+              </div>
             </div>
-            {notFound('year') && <p className="ui-missing"><CircleAlert />Year of study not found on your resume</p>}
 
             <div className="ob-grid">
-              <TextField label="GPA" value={form.gpa} onChange={(event) => set('gpa')(event.target.value)}
-                inputMode="decimal" placeholder="3.45" error={errors.gpa}
-                help={errors.gpa ? undefined : 'Out of 4.00.'} />
-              <SelectField label="Internships completed" value={form.internships} onChange={set('internships')}
-                placeholder="Select a number" options={list(options.internships, (n) => (n === 5 ? '5 or more' : String(n)))}
-                error={errors.internships} />
-            </div>
-            <div className="ob-grid rv-missing">
-              {notFound('gpa') && <p className="ui-missing"><CircleAlert />GPA not found on your resume</p>}
-              {notFound('internships') && <p className="ui-missing"><CircleAlert />Internships not found on your resume</p>}
+              <div className={`rv-field${state('gpa')}`}>
+                <TextField label="GPA" value={form.gpa} onChange={(event) => set('gpa')(event.target.value)}
+                  onBlur={() => set('gpa')(tidyGpa(form.gpa))}
+                  inputMode="decimal" placeholder="3.45" error={errors.gpa}
+                  help={errors.gpa ? undefined : 'Out of 4.00.'} />
+                {prompt('gpa', 'Please enter your GPA.')}
+              </div>
+              <div className={`rv-field${state('internships')}`}>
+                <SelectField label="Internships completed" value={form.internships} onChange={set('internships')}
+                  placeholder="Select a number" options={list(options.internships, (n) => (n === 5 ? '5 or more' : String(n)))}
+                  error={errors.internships} />
+                {prompt('internships', 'Please select how many.')}
+              </div>
             </div>
           </section>
 
@@ -253,7 +306,8 @@ export default function OnboardingReview() {
                 const selected = form.skills.includes(skill);
                 const Icon = selected ? Check : Plus;
                 return (
-                  <button key={skill} type="button" className="ui-chip" aria-pressed={selected}
+                  <button key={pulse?.skill === skill ? `${skill}-${pulse.n}` : skill} type="button"
+                    className={`ui-chip${pulse?.skill === skill ? ' is-pulse' : ''}`} aria-pressed={selected}
                     disabled={!selected && full} onClick={() => toggleSkill(skill)}>
                     <Icon aria-hidden="true" />{skill}
                   </button>
@@ -261,12 +315,33 @@ export default function OnboardingReview() {
               })}
               {/* A skill read from the resume that is not one of the fixed options yet. */}
               {extras.map((skill) => (
-                <button key={skill} type="button" className="ui-chip" aria-pressed="true"
+                <button key={pulse?.skill === skill ? `${skill}-${pulse.n}` : skill} type="button"
+                  className={`ui-chip${pulse?.skill === skill ? ' is-pulse' : ''}`} aria-pressed="true"
                   onClick={() => toggleSkill(skill)}>
                   <Check aria-hidden="true" />{skill}
                 </button>
               ))}
+              {adding ? (
+                <span className="rv-add">
+                  <input className="ui-chip rv-add__input" autoFocus value={draft} maxLength={120}
+                    placeholder="Type a skill" aria-label="New skill"
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      // Enter would submit the whole form; here it means "add this skill".
+                      if (event.key === 'Enter') { event.preventDefault(); addSkill(); }
+                      if (event.key === 'Escape') { setDraft(''); setAdding(false); }
+                    }}
+                    onBlur={() => { if (!draft.trim()) setAdding(false); }} />
+                  <button type="button" className="ui-chip rv-add__go" onMouseDown={(event) => event.preventDefault()}
+                    onClick={addSkill}>Add</button>
+                </span>
+              ) : (
+                <button type="button" className="ui-chip rv-add__chip" onClick={() => { setAdding(true); setSkillNote(''); }}>
+                  <Plus aria-hidden="true" />Add skill
+                </button>
+              )}
             </div>
+            {skillNote && <p className="rv-skill-note" role="status">{skillNote}</p>}
             {errors.skills && <p className="ui-field-error" role="alert">{errors.skills}</p>}
           </section>
 

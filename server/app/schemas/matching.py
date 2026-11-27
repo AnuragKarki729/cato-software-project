@@ -26,6 +26,11 @@ class MatchResult(BaseModel):
     breakdown: ScoreParts
     rank: int | None = None  # 1 = best match; None if the applicant fails a hard filter
     meets_requirements: bool = True
+    # The must-haves this candidate falls short on: [] for a full match. A close match
+    # (shown after every full match) names them, e.g. ["GPA", "Year of study"].
+    missed: list[str] = Field(default_factory=list)
+    # The "Stands out for" pills on the About card, read off the resume.
+    talking_points: list[str] = Field(default_factory=list)
     pitch_url: str | None = None
     pitch_duration: float | None = None
     # Responsibility 1 (issue #3): the title and caption the applicant gave their pitch,
@@ -52,7 +57,9 @@ class CurrentFilter(BaseModel):
 
 class RankedResults(BaseModel):
     filter: CurrentFilter
-    total: int  # applicants that pass the hard filters
+    total: int  # everyone in the list: full matches, then close matches
+    full_total: int = 0  # meet every must-have the recruiter set
+    close_total: int = 0  # miss some must-haves but meet at least one (shown after the full ones)
     offset: int
     limit: int
     results: list[MatchResult]

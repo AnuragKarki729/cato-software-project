@@ -3,7 +3,7 @@
 // The calls follow the planned API: POST /api/invitations (Responsibility 8, Siwakorn P.) and
 // POST/DELETE /api/saved/bookmarks (Responsibility 6, Aye Myo Myat). Until those routes are live
 // the toast says so; nothing pretends to be sent or saved.
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Send } from 'lucide-react';
 import { api } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -12,27 +12,49 @@ import { Button, Dialog, Toast } from './ui/primitives.jsx';
 // A route that is not mounted yet answers 404 "Not Found" (or 405/501).
 const notBuilt = (err) => err.status === 501 || err.status === 405 || (err.status === 404 && err.message === 'Not Found');
 
+const OPEN = new Set(['pending', 'viewed', 'accepted']);
+const CLOSED = new Set(['declined', 'expired']);
+
 export default function useCandidateActions() {
   const { user } = useAuth();
   const [inviting, setInviting] = useState(null);
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState(null);
-  const [invited, setInvited] = useState(() => new Set());
+  // applicant id -> { status, email } from GET /invitations/sent, so the state survives a reload
+  // and shows the applicant's answer, not just "sent from this page".
+  const [invitations, setInvitations] = useState(() => new Map());
   const [bookmarks, setBookmarks] = useState(() => new Map()); // applicant id -> bookmark id
   const closeToast = useCallback(() => setToast(null), []);
   const company = user?.company_name || 'Our company';
+  const isRecruiter = user?.role === 'recruiter';
+
+  const loadInvitations = useCallback(() => {
+    if (!isRecruiter) return;
+    api.get('/invitations/sent')
+      .then((rows) => setInvitations(new Map(rows.map((r) => [r.applicant_id, { status: r.status, email: r.email, reason: r.decline_reason }]))))
+      .catch(() => {});
+  }, [isRecruiter]);
+
+  useEffect(() => {
+    if (!isRecruiter) return;
+    loadInvitations();
+    api.get('/saved/bookmarks')
+      .then((rows) => setBookmarks(new Map(rows.map((b) => [b.applicant_id, b.id]))))
+      .catch(() => {});
+  }, [isRecruiter, loadInvitations]);
 
   async function sendInvitation() {
     const candidate = inviting;
     setSending(true);
     try {
       await api.post('/invitations', { applicant_id: candidate.applicant_id });
-      setInvited((set) => new Set(set).add(candidate.applicant_id));
+      setInvitations((map) => new Map(map).set(candidate.applicant_id, { status: 'pending', email: null }));
       setToast({ title: 'Invitation sent', message: `${candidate.name} will see it on their Invitations page.` });
     } catch (err) {
       setToast(notBuilt(err)
         ? { title: 'Invitation not sent', message: 'Invitations are not connected yet (Responsibility 8).', tone: 'error' }
         : { title: 'Invitation not sent', message: err.message, tone: 'error' });
+      loadInvitations(); // e.g. a 409 because it was already sent from another tab
     } finally {
       setSending(false);
       setInviting(null);
@@ -66,7 +88,7 @@ export default function useCandidateActions() {
             <span className="iv-dialog__icon"><Send aria-hidden="true" /></span>
             <div>
               <h2 className="ui-h5">Invite {inviting.name}?</h2>
-              <p className="ui-text-soft">They will receive this message on their Invitations page. You can invite each applicant once.</p>
+              <p className="ui-text-soft">They will receive this message on their Invitations page. One invitation at a time: if they decline, you can ask again.</p>
             </div>
           </div>
           <div className="iv-dialog__message">
@@ -86,7 +108,10 @@ export default function useCandidateActions() {
   return {
     invite: setInviting,
     toggleBookmark,
-    isInvited: (id) => invited.has(id),
+    // An open or accepted invitation. Declined and expired ones can be sent again.
+    isInvited: (id) => OPEN.has(invitations.get(id)?.status),
+    invitation: (id) => invitations.get(id) || null,
+    inviteLabel: (id) => (CLOSED.has(invitations.get(id)?.status) ? 'Invite again' : 'Invite'),
     isBookmarked: (id) => bookmarks.has(id),
     notify: setToast,
     ui,

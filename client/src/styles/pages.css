@@ -414,7 +414,7 @@
 }
 
 /* ---------- P10 · Sent invitations ---------- */
-.si-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.si-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
 .si-stat { gap: 8px; padding: 20px; align-items: flex-start; }
 .si-stat strong { font-size: 30px; line-height: 36px; font-weight: 700; letter-spacing: -0.01em; }
 .si-table { background: #fff; border: 1px solid var(--ui-slate-200); border-radius: var(--ui-radius-xl); overflow: hidden; }
@@ -455,6 +455,7 @@
 
 @media (max-width: 767px) {
   .si-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .si-person a { color: var(--ui-emerald-700); }
   .si-stat { padding: 12px; }
   .si-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px 16px; }
   .si-row--head { display: none; }
@@ -1106,3 +1107,232 @@
   .st-main { padding: 14px 14px calc(16px + var(--ui-tabbar-space)); gap: 12px; }
   .st-add { flex-direction: column; align-items: stretch; }
 }
+
+/* Issue #4: the invitation's state on the "Interested?" card. */
+.cp-invite-state { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.cp-invite-state p { margin: 0; overflow-wrap: anywhere; }
+.cp-invite-state a { color: var(--ui-emerald-700); font-weight: 600; }
+
+/* Video page: the title sits above the video; "Free topic" puts its own field beside it. */
+.pv-title { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.pv-title--free { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 640px) { .pv-title--free { grid-template-columns: minmax(0, 1fr); } }
+
+/* Video page: where the status and buttons go (see actionBar in OnboardingVideo.jsx).
+   Tablet and up: stacked in the side column, under the tips. Phone: laid over the video. */
+.pv-bar--overlay { display: none; }
+/* The card is exactly the video: no white margin either side, its rounded corners clip the
+   video's. The trimmer is the exception, it needs the full width for its timeline. */
+.pv-player { align-self: center; width: fit-content; max-width: 100%; border: 0; }
+.pv-player .pv-stage { width: 320px; max-width: 100%; }
+.pv-player:has(.pv-stage--trim) { align-self: stretch; width: auto; }
+.pv-player:has(.pv-stage--trim) .pv-stage { width: 100%; }
+.pv-side-actions { padding: 0; }
+.pv-bar--side { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 12px; padding: 20px; }
+.pv-bar--side .pv-bar__actions { flex-direction: column; }
+.pv-bar--side .pv-bar__actions .ui-btn { width: 100%; }
+
+/* Phone: one screen, no scrolling. The video takes the full width and every bit of height
+   that is left; the buttons float over its bottom edge. The tips, the long intro and the
+   duplicate buttons inside the empty video are left out at this size. */
+@media (max-width: 767px) {
+  .pv-main { height: calc(100dvh - 56px); padding: 12px 16px; overflow: hidden; }
+  .pv-main--app { height: calc(100dvh - 56px - var(--ui-tabbar-space)); }
+  .pv-column { height: 100%; gap: 12px; }
+  .pv-column > .ob-heading .ui-lead, .pv-column > .ob-heading .ui-overline { display: none; }
+  .pv-grid { display: flex; flex-direction: column; align-items: stretch; flex: 1; min-height: 0; gap: 0; }
+  .pv-side { display: none; }
+  .pv-left { flex: 1; min-height: 0; gap: 10px; }
+  .pv-left .ui-help { display: none; }
+  .pv-title--free { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+
+  /* On a phone the card IS the video and takes the whole width. */
+  .pv-player { position: relative; flex: 1; min-height: 0; display: block; align-self: stretch; width: auto; background: #020617; }
+  .pv-player .pv-stage { width: 100%; height: 100%; max-width: none; margin: 0; aspect-ratio: auto; }
+  .pv-empty { padding: 12px 12px 96px; gap: 8px; }
+  .pv-empty > span:not(.pv-empty__icon), .pv-empty__actions { display: none; }
+
+  .pv-bar--overlay { display: flex; position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; padding: 32px 12px 12px; background: linear-gradient(to top, rgba(2, 6, 23, 0.85), rgba(2, 6, 23, 0)); pointer-events: none; }
+  .pv-bar--overlay > * { pointer-events: auto; }
+  .pv-bar--overlay .pv-bar__status { display: none; }
+  /* Record and Choose side by side, the main action full width underneath. */
+  .pv-bar--overlay .pv-bar__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .pv-bar--overlay .pv-bar__actions .ui-btn { min-width: 0; padding: 0 8px; font-size: 13px; gap: 6px; }
+  .pv-bar--overlay .pv-bar__actions .ui-btn[type=submit], .pv-bar--overlay .pv-bar__actions .ui-btn:only-child { grid-column: 1 / -1; }
+  .pv-bar--overlay .pv-bar__actions .ui-btn svg { width: 14px; height: 14px; }
+  /* A chosen video has the browser's own controls along the bottom: sit just above them. */
+  .pv-player:has(video[controls]) .pv-bar--overlay { bottom: 52px; padding-top: 12px; background: none; }
+  /* Recording: the recorder's own controls are at the bottom, so the buttons go to the top. */
+  .pv-player:has(.vr) .pv-bar--overlay { top: 0; bottom: auto; padding: 12px 12px 32px; background: linear-gradient(to bottom, rgba(2, 6, 23, 0.85), rgba(2, 6, 23, 0)); }
+  .pv-stage__label { top: 8px; left: 10px; font-size: 11px; }
+  .pv-stage__label--right { left: auto; right: 10px; }
+  /* Trimming needs the whole box and has its own buttons: ours go underneath, and the box may scroll. */
+  .pv-player:has(.pv-stage--trim) { display: flex; flex-direction: column; overflow: auto; background: #fff; }
+  .pv-player:has(.pv-stage--trim) .pv-stage { height: auto; }
+  .pv-player:has(.pv-stage--trim) .pv-bar--overlay { position: static; background: none; padding: 12px; }
+
+  .pv-about textarea.ui-control { min-height: 0; height: 52px; resize: none; }
+  .pv-actions { flex-direction: row; }
+  .pv-actions .ui-btn { width: auto; flex: 1; }
+}
+
+/* Tablet and up: the title, the free-topic field and the caption are exactly as wide as the
+   video and centred with it, so nothing sticks out past its edges. At 320px two fields side by
+   side would be too narrow to read, so "Your title" stacks under the dropdown here. Phones keep
+   them side by side, because there the video is the full width of the screen. */
+@media (min-width: 768px) {
+  .pv-left > .pv-title, .pv-left > .pv-about { align-self: center; width: 320px; max-width: 100%; }
+  .pv-title--free { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Free topic: the title box becomes a text field; its arrow goes back to the list. */
+.pv-title__input { padding-right: 40px; }
+.pv-title__back { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 0; border-radius: var(--ui-radius-md); background: transparent; color: var(--ui-slate-500); cursor: pointer; }
+.pv-title__back:hover { background: var(--ui-slate-100); color: var(--ui-slate-900); }
+.pv-title__back svg { width: 16px; height: 16px; }
+
+/* Video page columns (tablet and up; phones hide both side columns).
+   Tablet: the video column, and one side column holding the tips then the buttons.
+   Desktop: three columns balanced around the video: what to say | video | tips + buttons. */
+@media (min-width: 768px) {
+  .pv-grid { grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: auto 1fr; grid-template-areas: "main start" "main end"; column-gap: 32px; row-gap: 16px; }
+  .pv-left { grid-area: main; }
+  .pv-side--start { grid-area: start; }
+  .pv-side--end { grid-area: end; }
+}
+@media (min-width: 1024px) {
+  .pv-grid { grid-template-columns: minmax(0, 1fr) 320px minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: "start main end"; }
+}
+
+/* The trim popup: as wide as the screen allows (up to 960px), scrolling inside itself if a
+   short screen needs it. Overrides the narrow sizes .trim-box was given for the old column. */
+.pv-trim-dialog { width: 960px; max-width: 100%; max-height: calc(100dvh - 32px); overflow: auto; gap: 16px; }
+.pv-trim-dialog__head { display: flex; flex-direction: column; gap: 4px; }
+.pv-trim-dialog .trim-box { max-width: none; width: 100%; }
+/* The library puts its timeline inside the video's box, so the box gets the full width and
+   only the preview is held to 360px: the timeline then spans the popup, for finer trimming. */
+.pv-trim-dialog .trim-box [class*="_videoStage_"] { max-width: none; }
+.pv-trim-dialog .trim-box [class*="_videoStage_"] > [class*="_wrapper_"] { max-width: 360px; margin: 0 auto; }
+.pv-trim-dialog .trim-box video { max-height: min(420px, 45dvh); }
+.pv-trim-dialog .trim-box [class*="_toolbarOverlay_"] { width: 100%; margin: 12px 0 0; transform: none; }
+@media (max-width: 767px) {
+  .ui-scrim:has(.pv-trim-dialog) { padding: 16px 12px; }
+  .pv-trim-dialog { padding: 16px; }
+  /* Phone: Trim and Cancel drop to their own row, so the timeline gets the whole width. */
+  .pv-trim-dialog [class*="_toolbar_"] { flex-wrap: wrap; row-gap: 10px; }
+  .pv-trim-dialog [class*="_trackArea_"] { flex: 1 1 0; min-width: 0; }
+  .pv-trim-dialog [class*="_actions_"] { flex: 1 0 100%; display: flex; flex-direction: row; justify-content: flex-end; gap: 8px; }
+}
+
+/* Review: the pitch card. Text on the left, one line each; the video on the right. */
+.rv-video .rv-video__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.rv-line { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rv-video__title { font-weight: 600; color: var(--ui-slate-700); }
+@media (max-width: 760px) { .rv-video { flex-direction: row; align-items: center; } .rv-video .ui-poster { width: 112px; } }
+
+/* Review: where each detail stands, in muted colours. Filled: dusty green. Missing: dusty red,
+   with a line asking for it. Focus keeps the usual ring so typing still reads as active. */
+.rv-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.rv-field.is-filled .ui-control { border-color: #8fb39a; }
+.rv-field.is-empty .ui-control { border-color: #c98f8f; background: #fcf6f6; }
+.rv-field .ui-control:focus { box-shadow: 0 0 0 3px rgba(143, 179, 154, 0.25); }
+.rv-field.is-empty .ui-control:focus { box-shadow: 0 0 0 3px rgba(201, 143, 143, 0.25); }
+.rv-prompt { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; line-height: 16px; color: #a86a6a; }
+.rv-prompt svg { width: 13px; height: 13px; flex: none; }
+
+/* Review, skills: "+ Add skill" is a grey chip; it becomes a text box in the same row. */
+.rv-add__chip { background: var(--ui-slate-100); border-color: var(--ui-slate-200); color: var(--ui-slate-700); }
+.rv-add__chip:hover:not(:disabled) { background: var(--ui-slate-200); }
+.rv-add { display: inline-flex; gap: 6px; }
+.rv-add__input { width: 180px; cursor: text; font: inherit; font-size: 14px; color: var(--ui-slate-900); }
+.rv-add__input:focus { outline: none; border-color: var(--ui-emerald-500); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
+.rv-add__go { background: var(--ui-slate-900); border-color: var(--ui-slate-900); color: #fff; }
+.rv-skill-note { margin: 0; font-size: 13px; line-height: 18px; color: var(--ui-slate-600); }
+/* Already picked: the chip pulses so the eye finds it. */
+.ui-chip.is-pulse { animation: rv-chip-pulse 0.7s ease-out 2; }
+@keyframes rv-chip-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); }
+  40% { transform: scale(1.08); }
+  100% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .ui-chip.is-pulse { animation: none; outline: 2px solid var(--ui-emerald-500); outline-offset: 2px; } }
+/* On a phone the caption may wrap: the text column is narrow and a cut-off caption says little.
+   It stops at four lines so a very long one cannot push the video card out of shape. */
+@media (max-width: 760px) {
+  .rv-video__caption { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+}
+
+/* Video step: talking points read off the resume, in place of the timed tips. */
+.pv-points__list { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 0; padding: 0; list-style: none; }
+.pv-points__list li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 20px; color: var(--ui-slate-700); }
+.pv-points__list svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--ui-emerald-600); }
+.pv-points__reading { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12px; line-height: 16px; color: var(--ui-slate-500); }
+/* The phone-only version: one line under the page title. */
+.pv-hint { display: none; }
+@media (max-width: 767px) {
+  .pv-hint { display: flex; align-items: center; gap: 6px; margin: 0; min-width: 0; font-size: 13px; line-height: 18px; color: var(--ui-slate-600); }
+  .pv-hint { align-items: flex-start; }
+  .pv-hint span { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .pv-hint svg { margin-top: 2px; }
+  .pv-hint svg { flex: none; width: 14px; height: 14px; color: var(--ui-emerald-600); }
+}
+
+/* "Reading your resume…": large enough to read as "something is happening", on the review
+   page and on the video step's talking-points card. */
+.rv-reading, .pv-points__reading { gap: 12px; font-size: 15px; line-height: 22px; font-weight: 500; color: var(--ui-slate-600); }
+.pv-points__reading { padding: 12px 14px; border-radius: var(--ui-radius-lg); background: var(--ui-emerald-50); color: var(--ui-emerald-800, #065f46); }
+.rv-reading .rv-dots, .pv-points__reading .rv-dots { gap: 6px; }
+.rv-reading .rv-dots i, .pv-points__reading .rv-dots i { width: 10px; height: 10px; }
+.rv-reading { padding: 8px 16px; border-radius: 9999px; background: var(--ui-emerald-50); color: var(--ui-emerald-800, #065f46); }
+
+/* About card: "Stands out for" pills, the result-first talking points read off the resume.
+   A soft amber so they are never mistaken for the green skill matches. Scales with the card
+   the same way the skills do. */
+.cp-standouts { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cp-standouts > p { font-weight: 500; color: var(--ui-slate-600); }
+.cp-standouts__list { display: flex; flex-wrap: wrap; gap: 6px; }
+.cp-standout { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 3px 10px; border-radius: 9999px;
+  background: #fdf4e3; border: 1px solid #f1dcb2; color: #8a5a1c; font-size: 12px; line-height: 16px; font-weight: 500; }
+.cp-standout svg { flex: none; width: 12px; height: 12px; color: #c48a2c; }
+.cp-sheet--about .cp-standouts { gap: clamp(3px, 1.6cqw, 8px); }
+.cp-sheet--about .cp-standouts > p { font-size: clamp(9px, 3.4cqw, 12px); line-height: 1.3; }
+.cp-sheet--about .cp-standout { font-size: clamp(8px, 3.2cqw, 12px); padding: 1px clamp(5px, 2.6cqw, 10px); }
+.cp-sheet--about .cp-standout svg { width: clamp(8px, 3cqw, 12px); height: clamp(8px, 3cqw, 12px); }
+
+/* Ranked results: a close match (misses some must-haves) says so, in a muted amber, where a
+   full match shows its rank. */
+.rf-close { align-self: flex-start; display: inline-flex; padding: 2px 10px; border-radius: 9999px; background: #fdf4e3; border: 1px solid #f1dcb2; color: #8a5a1c; font-size: 12px; line-height: 18px; font-weight: 500; }
+@media (max-width: 767px) { .rf-side--overlay .rf-close { background: rgba(253, 244, 227, 0.92); } }
+
+/* Explore: the About card, one step sideways after the last video, sized like the resume card
+   (a portrait sheet the height of the stage). The card inside scales with this box, the way it
+   does in the candidate profile's row of cards (container units). */
+.ex-about { position: relative; flex: none; height: 100%; aspect-ratio: 9 / 14; max-width: 100%; overflow: hidden;
+  container-type: inline-size; border-radius: var(--ui-radius-xl); background: #fff; box-shadow: var(--ui-shadow-lg);
+  animation: ex-resume-in 360ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.ex-about .cp-sheet--about { position: absolute; inset: 0; height: 100%; overflow: auto; }
+@media (max-width: 767px) { .ex-row.is-resume .ex-about { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 12px; } }
+@media (prefers-reduced-motion: reduce) { .ex-about { animation: none; } }
+
+/* Applicant invitations: once accepted, the recruiter's address. */
+.in-card__contact { margin: 0; padding: 10px 14px; border-radius: var(--ui-radius-lg); background: var(--ui-emerald-50); color: var(--ui-emerald-800, #065f46); font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+.in-card__contact a { color: var(--ui-emerald-700); font-weight: 600; }
+@media (max-width: 767px) { .rf-slide.is-resume .ex-about { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 12px; } }
+
+/* Settings: Delete account, in a muted red so it never reads as a routine action. */
+.st-danger { border-color: #ecc9c9; }
+.st-danger .st-card__icon { background: #fbeaea; color: #a85a5a; }
+.st-danger__button { color: #a8443f; border-color: #e4b9b6; }
+.st-danger__button:hover { background: #fbeaea; }
+.st-danger__form { display: flex; flex-direction: column; gap: 12px; }
+.st-danger__confirm { background: #b4443f; border-color: #b4443f; color: #fff; }
+.st-danger__confirm:hover:not(:disabled) { background: #9a3833; }
+/* The header avatar is a link to Settings now. */
+.ui-header__person { color: inherit; text-decoration: none; border-radius: var(--ui-radius-md); }
+.ui-header__person:hover { background: var(--ui-slate-50); }
+
+/* Declining an invitation: the optional reason, and where it shows afterwards. */
+.in-decline { display: flex; flex-direction: column; gap: 12px; }
+.in-decline__reason { height: auto; min-height: 84px; padding: 10px 12px; resize: vertical; font: inherit; }
+.in-card__reason { margin: 0; padding: 10px 14px; border-radius: var(--ui-radius-lg); background: var(--ui-slate-50); color: var(--ui-slate-600); font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+.si-reason { color: var(--ui-slate-600); font-style: italic; overflow-wrap: anywhere; }

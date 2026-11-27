@@ -86,10 +86,11 @@ export default function AppHeader() {
             aria-label="Privacy (PDPA)" title="Privacy (PDPA)">
             <ShieldCheck aria-hidden="true" /><span>PDPA</span>
           </button>
-          <div className="ui-header__person">
+          {/* The avatar opens Settings: recruiters have no Settings link in the nav. */}
+          <Link className="ui-header__person" to="/settings" title="Settings" aria-label={`${user.name}, settings`}>
             <Avatar name={user.name} />
             <span className="ui-header__name">{user.name}<span>{role}</span></span>
-          </div>
+          </Link>
           <Button variant="ghost" size="sm" icon={LogOut} className="ui-header__logout" disabled={busy} onClick={handleLogout}>
             {busy ? 'Logging out…' : 'Log out'}
           </Button>
@@ -97,6 +98,7 @@ export default function AppHeader() {
             <summary aria-label="Account menu"><Avatar name={user.name} /></summary>
             <div className="ui-header__menu-panel">
               <p><strong>{user.name}</strong><br /><span className="ui-text-xs ui-text-muted">{role}</span></p>
+              <Button variant="ghost" size="sm" icon={SlidersHorizontal} block to="/settings">Settings</Button>
               <Button variant="ghost" size="sm" icon={LogOut} block disabled={busy} onClick={handleLogout}>Log out</Button>
             </div>
           </details>
