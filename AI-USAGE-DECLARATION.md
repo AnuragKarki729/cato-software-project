@@ -26,7 +26,7 @@ anyone who uses AI for committed work updates this file in the same pull request
 | Anurag Karki | `AnuragKarki729` | Claude Code (Claude Opus 5, Opus 5.5) | Applicant visibility controls (issue #5: Settings, hidden and blocked applicants left out of every list, bookmarks and saved-search counts); invitation states, the Viewed status and the email exchange on acceptance (issue #4); close matches in the ranked results and the any-one-filter rule; switching the resume reader to Claude Haiku 5.5 with field-of-study picking and talking points; the "Stands out for" pills and the About card in Explore and Ranked results; the video and review page redesigns; the startup column migration and the shared seed snapshot (`seed_snapshot.py`); fixing the "MySQL server has gone away" errors; the tests for all of these; the presentation deck and presenter scripts. Responsibilities 2, 4, 5, 6 and 8 code was edited with the group leader's approval. | Co-Write |
 | Nusrat Begum | `NusratBegum` | _to be filled in by the member_ | Responsibilities 2 and 5 | _to be filled in_ |
 | Aye Myo Myat | `avocado-00` | _to be filled in by the member_ | Responsibilities 6 and 7 | _to be filled in_ |
-| Siwakorn P. | `mumoo21` | _to be filled in by the member_ | Responsibilities 4 and 8 | _to be filled in_ |
+| Siwakorn P. | `mumoo21` | Chat GPT | Responsibilities 4 and 8 | CO-write |
 
 Add a new row for each new tool or area of work. Write "None" in the tool column if no AI was used.
 

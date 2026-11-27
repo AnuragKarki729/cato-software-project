@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel
 import app.models  # registers every table (User, Video, AuthSession, RegistrationConsent, ApplicantProfile, RecruiterFilter)
-from app.routers import auth, videos, feed, options, profiles, matching, filters, invitations, saved
+from app.routers import auth, videos, feed, options, profiles, matching, filters, invitations
 from app.database import add_missing_columns, engine
 from app.seed import seed_demo_profiles, seed_if_empty, seed_vocabulary
 from app import seed_snapshot
@@ -40,7 +40,6 @@ app.include_router(profiles.router, prefix="/api")  # Responsibility 2
 app.include_router(matching.router, prefix="/api")  # Responsibility 5
 app.include_router(filters.router, prefix="/api")  # Responsibility 4
 app.include_router(invitations.router, prefix="/api")  # Responsibility 8
-app.include_router(saved.router, prefix="/api")  # Responsibility 6
 
 @app.get("/")
 def read_root():
