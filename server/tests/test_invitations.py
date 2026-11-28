@@ -159,3 +159,71 @@ def test_a_declined_invitation_never_releases_the_email(client, users):
     sent = client.get('/api/invitations/sent', headers=h_rec).json()[0]
     assert sent['status'] == 'declined'
     assert sent['email'] is None
+
+
+# ---------- "Viewed" (issue #4) ----------
+
+def test_the_recruiter_sees_viewed_once_the_applicant_opens_their_inbox(client, users):
+    h_rec = as_user(users['recruiter'])
+    h_app = as_user(users['applicant'])
+    applicant_id = users['applicant']['id']
+    inv = client.post('/api/invitations', json={'applicant_id': applicant_id}, headers=h_rec).json()
+    assert client.get('/api/invitations/sent', headers=h_rec).json()[0]['status'] == 'pending'
+
+    client.get('/api/invitations/received', headers=h_app)
+    assert client.get('/api/invitations/sent', headers=h_rec).json()[0]['status'] == 'viewed'
+    # Viewed is still open: the applicant can answer it.
+    assert client.post(f'/api/invitations/{inv["id"]}/accept', headers=h_app).status_code == 200
+    assert client.get('/api/invitations/sent', headers=h_rec).json()[0]['status'] == 'accepted'
+
+
+def test_asking_again_starts_unviewed(client, users):
+    h_rec = as_user(users['recruiter'])
+    h_app = as_user(users['applicant'])
+    applicant_id = users['applicant']['id']
+    inv = client.post('/api/invitations', json={'applicant_id': applicant_id}, headers=h_rec).json()
+    client.get('/api/invitations/received', headers=h_app)
+    client.post(f'/api/invitations/{inv["id"]}/decline', headers=h_app)
+    client.post('/api/invitations', json={'applicant_id': applicant_id}, headers=h_rec)
+    assert client.get('/api/invitations/sent', headers=h_rec).json()[0]['status'] == 'pending'
+
+
+def test_the_applicant_gets_the_recruiter_email_once_they_accept(client, users):
+    """Accepting releases both addresses: the applicant's to the recruiter, and the
+    recruiter's to the applicant."""
+    h_rec = as_user(users['recruiter'])
+    h_app = as_user(users['applicant'])
+    inv = client.post('/api/invitations', json={'applicant_id': users['applicant']['id']}, headers=h_rec).json()
+    assert client.get('/api/invitations/received', headers=h_app).json()[0]['recruiter_email'] is None
+    accepted = client.post(f'/api/invitations/{inv["id"]}/accept', headers=h_app).json()
+    assert accepted['recruiter_email'] == users['recruiter']['email']
+    assert client.get('/api/invitations/received', headers=h_app).json()[0]['recruiter_email'] == users['recruiter']['email']
+
+
+# ---------- declining with a reason ----------
+
+def _invite_and_decline(client, users, body):
+    h_rec, h_app = as_user(users['recruiter']), as_user(users['applicant'])
+    inv = client.post('/api/invitations', json={'applicant_id': users['applicant']['id']}, headers=h_rec).json()
+    return client.post(f'/api/invitations/{inv["id"]}/decline', headers=h_app, **body), h_rec, h_app
+
+
+def test_a_decline_reason_reaches_the_recruiter(client, users):
+    r, h_rec, h_app = _invite_and_decline(client, users, {'json': {'reason': '  Looking for   remote roles only '}})
+    assert r.status_code == 200 and r.json()['decline_reason'] == 'Looking for remote roles only'
+    sent = client.get('/api/invitations/sent', headers=h_rec).json()[0]
+    assert sent['status'] == 'declined' and sent['decline_reason'] == 'Looking for remote roles only'
+    assert sent['email'] is None
+
+
+def test_no_reason_falls_back_to_the_polite_default(client, users):
+    from app.schemas.invitation import DEFAULT_DECLINE_REASON
+    # The second round re-invites the declined applicant, which reuses and resets the row.
+    for body in ({}, {'json': {'reason': '   '}}):
+        r, h_rec, h_app = _invite_and_decline(client, users, body)
+        assert r.json()['decline_reason'] == DEFAULT_DECLINE_REASON
+
+
+def test_a_decline_reason_is_limited_to_200_characters(client, users):
+    r, _, _ = _invite_and_decline(client, users, {'json': {'reason': 'x' * 201}})
+    assert r.status_code == 422

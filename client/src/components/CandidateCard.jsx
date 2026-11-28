@@ -40,7 +40,7 @@ export default function CandidateCard({ result, suffix = '', actions, kind }) {
           {invited ? (
             <span className="ui-badge ui-badge--info"><Check aria-hidden="true" style={{ width: 12, height: 12 }} />Invited</span>
           ) : (
-            <Button variant="primary" size="sm" icon={Send} onClick={() => actions?.invite(result)}>Invite</Button>
+            <Button variant="primary" size="sm" icon={Send} onClick={() => actions?.invite(result)}>{actions?.inviteLabel?.(result.applicant_id) || 'Invite'}</Button>
           )}
         </div>
         <Button variant="secondary" size="sm" to={profileLink}>View profile</Button>

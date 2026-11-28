@@ -10,11 +10,11 @@
 // to avoid. Saving goes through Responsibility 2's endpoint and schema; nothing here is new
 // server work.
 import { useEffect, useRef, useState } from 'react';
-import { Briefcase, Calendar, Check, ExternalLink, FileText, GraduationCap, Pencil, RotateCcw, Star, Upload, X } from 'lucide-react';
+import { Briefcase, Calendar, Check, ExternalLink, FileText, GraduationCap, Pencil, RotateCcw, Sparkles, Star, Upload, X } from 'lucide-react';
 import { api } from '../api.js';
 import SearchSelect from './ui/SearchSelect.jsx';
 import { Button, SelectField, Tag, TextField } from './ui/primitives.jsx';
-import { gpaLabel, yearLabel } from '../utils/format.js';
+import { gpaLabel, tidyGpa, yearLabel } from '../utils/format.js';
 
 const numberOrNull = (value) => (value === '' || value === null ? null : Number(value));
 const asList = (values, label) => (values || []).map((v) => ({ value: String(v), label: label ? label(v) : String(v) }));
@@ -93,7 +93,7 @@ export function AboutCard({ profile, match, options = NO_OPTIONS, editable = fal
         university: form.university || null,
         field_of_study: form.field_of_study || null,
         year: numberOrNull(form.year),
-        gpa: numberOrNull(form.gpa),
+        gpa: numberOrNull(tidyGpa(form.gpa)),
         internships: numberOrNull(form.internships),
         skills: form.skills,
       });
@@ -119,7 +119,8 @@ export function AboutCard({ profile, match, options = NO_OPTIONS, editable = fal
           <SelectField label="Year" value={form.year} onChange={setField('year')}
             placeholder="Year" options={asList(options.years, yearLabel)} />
           <TextField label="GPA" value={form.gpa} inputMode="decimal" placeholder="3.45"
-            onChange={(event) => setField('gpa')(event.target.value)} />
+            onChange={(event) => setField('gpa')(event.target.value)}
+            onBlur={() => setField('gpa')(tidyGpa(form.gpa))} />
         </div>
         <SelectField label="Internships completed" value={form.internships} onChange={setField('internships')}
           placeholder="Select a number" options={asList(options.internships, (n) => (n === 5 ? '5 or more' : String(n)))} />
@@ -170,6 +171,19 @@ export function AboutCard({ profile, match, options = NO_OPTIONS, editable = fal
           </div>
         ))}
       </div>
+      {/* What makes them stand out: the talking points read off their resume, short and
+          result-first ("Built app with 2,000 users"). Amber, so they never read as the green
+          skill matches below. */}
+      {profile.talking_points?.length > 0 && (
+        <div className="cp-standouts">
+          <p>Stands out for</p>
+          <div className="cp-standouts__list">
+            {profile.talking_points.map((point) => (
+              <span className="cp-standout" key={point} title={point}><Sparkles aria-hidden="true" />{point}</span>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="cp-skills">
         <p>{match ? 'Skills (matches in green)' : 'Skills'}</p>
         {skills.length ? (

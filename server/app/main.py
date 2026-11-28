@@ -2,9 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel
 import app.models  # registers every table (User, Video, AuthSession, RegistrationConsent, ApplicantProfile, RecruiterFilter)
-from app.routers import auth, videos, feed, options, profiles, matching, filters, invitations
+from app.routers import auth, videos, feed, options, profiles, matching, filters, invitations, saved
 from app.database import add_missing_columns, engine
 from app.seed import seed_demo_profiles, seed_if_empty, seed_vocabulary
+from app import seed_snapshot
 
 app = FastAPI(title="Cato Recruitment Platform")
 
@@ -22,6 +23,10 @@ app.add_middleware(
 # database.ADDED_COLUMNS.
 SQLModel.metadata.create_all(engine)
 add_missing_columns()
+# SEED_DATA=true: an empty database starts from the shared snapshot (seed_snapshot.py), so
+# everyone has the same accounts and videos. The seeds below then find nothing to add.
+if seed_snapshot.enabled():
+    seed_snapshot.load_if_empty()
 seed_if_empty()
 seed_vocabulary()  # universities and fields of study, which then grow
 seed_demo_profiles()
@@ -35,6 +40,7 @@ app.include_router(profiles.router, prefix="/api")  # Responsibility 2
 app.include_router(matching.router, prefix="/api")  # Responsibility 5
 app.include_router(filters.router, prefix="/api")  # Responsibility 4
 app.include_router(invitations.router, prefix="/api")  # Responsibility 8
+app.include_router(saved.router, prefix="/api")  # Responsibility 6
 
 @app.get("/")
 def read_root():

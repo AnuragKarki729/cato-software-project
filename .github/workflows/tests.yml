@@ -1,0 +1,36 @@
+# Runs the server tests on every pull request and on every push to main, so a PR shows a
+# green check (or a red cross) before anyone merges it.
+#
+# No secrets are needed: the tests build their own throwaway SQLite database
+# (server/tests/conftest.py), fake Cloudinary, and never call the Claude API.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  server:
+    name: Server tests (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install   # the version in .python-version
+
+      - name: Install dependencies
+        run: uv sync --locked    # exactly what uv.lock pins
+
+      - name: Run the tests
+        working-directory: server
+        env:
+          PYTHONPATH: .
+        run: uv run --with pytest --with httpx pytest -q -p no:cacheprovider

@@ -67,7 +67,11 @@ function AppRoutes() {
         {/* Responsibility 3: the applicant's feed of other people's pitches. Recruiters
             have Explore instead, which pages through candidates rather than videos. */}
         <Route path="/feed" element={<VideoFeed />} />
-        {/* Responsibility 2 (issue #5): hide my profile, and block companies */}
+      </Route>
+
+      {/* Both roles: applicants also get their privacy controls here (issue #5), and everyone
+          can delete their account. */}
+      <Route element={<Protected />}>
         <Route path="/settings" element={<Settings />} />
       </Route>
 

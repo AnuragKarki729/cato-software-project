@@ -9,6 +9,7 @@ import { api } from '../../api.js';
 import AppHeader from '../../components/AppHeader.jsx';
 import { Button, SelectField, TextField, Toast } from '../../components/ui/primitives.jsx';
 import { EMPTY_FILTER, fromApi, fromSearch, toQuery } from '../../utils/filters.js';
+import { tidyGpa } from '../../utils/format.js';
 
 const RANKING = [
   ['60 pts', 'Skills: share of your skills they have'],
@@ -17,8 +18,9 @@ const RANKING = [
 ];
 
 function gpaProblem(value) {
-  if (value.trim() === '') return null;
-  return /^\d(\.\d{1,2})?$/.test(value.trim()) && Number(value) <= 4 ? null : 'Enter a GPA from 0.00 to 4.00';
+  const tidy = tidyGpa(value);
+  if (tidy === '') return null;
+  return /^\d\.\d{2}$/.test(tidy) && Number(tidy) <= 4 ? null : 'Enter a GPA from 0.00 to 4.00';
 }
 
 function Funnel({ label, count, total, accent }) {
@@ -81,10 +83,15 @@ export default function FindCandidates() {
     skills: current.skills.includes(skill) ? current.skills.filter((s) => s !== skill) : [...current.skills, skill],
   }));
   const max = options.max_skills;
-  const hasSkills = filter.skills.length > 0;
   const year = Number(filter.min_year) || 1;
-  const gpa = Number(filter.min_gpa) || 0;
+  const gpa = Number(tidyGpa(filter.min_gpa)) || 0;
   const internships = Number(filter.min_internships) || 0;
+  // Matching is soft now: full matches first, then close ones. So any single thing set is
+  // enough to search on; a skill is no longer required.
+  const hasAny = filter.skills.length > 0 || !!filter.field_of_study || year > 1 || gpa > 0 || internships > 0;
+  // A close match meets one must-have and misses another, so there can only be close matches
+  // when at least two must-haves are set.
+  const mustHaves = [!!filter.field_of_study, year > 1, gpa > 0, internships > 0].filter(Boolean).length;
   const lastStep = [gpa > 0 && `GPA ${gpa.toFixed(2)}+`, internships > 0 && `${internships}+ internship${internships === 1 ? '' : 's'}`]
     .filter(Boolean).join(' and ') || 'Any GPA and internships';
 
@@ -103,7 +110,7 @@ export default function FindCandidates() {
 
   async function showMatches(event) {
     event.preventDefault();
-    if (!hasSkills || gpaError) return;
+    if (!hasAny || gpaError) return;
     try {
       await api.put('/filters/me', {
         field_of_study: filter.field_of_study || null,
@@ -138,6 +145,7 @@ export default function FindCandidates() {
             </div>
             <div className="ob-row">
               <TextField label="Minimum GPA" value={filter.min_gpa} onChange={(e) => set('min_gpa')(e.target.value)}
+                onBlur={() => set('min_gpa')(tidyGpa(filter.min_gpa))}
                 inputMode="decimal" autoComplete="off" help="From 0.00 to 4.00" error={gpaError} />
               <SelectField label="Minimum internships" value={filter.min_internships} onChange={(v) => set('min_internships')(v === '' ? '' : Number(v))} placeholder="Choose…" allowEmpty
                 options={options.internships.filter((n) => n > 0).map((n) => ({ value: n, label: `${n} or more` }))} />
@@ -169,11 +177,13 @@ export default function FindCandidates() {
           <div className="fc-actions">
             <Button variant="ghost" size="md" onClick={() => setFilter(EMPTY_FILTER)}>Clear all</Button>
             <div className="fc-actions__right">
-              <Button variant="secondary" size="lg" icon={Bookmark} onClick={saveSearch} disabled={!hasSkills || !!gpaError}>
+              <Button variant="secondary" size="lg" icon={Bookmark} onClick={saveSearch} disabled={!hasAny || !!gpaError}>
                 Save this search
               </Button>
-              <Button type="submit" variant="primary" size="lg" icon={Search} disabled={!hasSkills || !!gpaError}>
-                {hasSkills && preview ? `Show ${preview.passing} ${preview.passing === 1 ? 'match' : 'matches'}` : 'Show matches'}
+              <Button type="submit" variant="primary" size="lg" icon={Search} disabled={!hasAny || !!gpaError}>
+                {!hasAny || !preview ? 'Show matches'
+                  : preview.passing > 0 ? `Show ${preview.passing} ${preview.passing === 1 ? 'match' : 'matches'}`
+                  : mustHaves >= 2 ? 'Show closest matches' : 'Show matches'}
               </Button>
             </div>
           </div>
@@ -182,7 +192,7 @@ export default function FindCandidates() {
         <aside className="fc-side">
           <section className="ui-card" aria-labelledby="preview-title" aria-live="polite">
             <h2 id="preview-title" className="ui-score__label">Live preview</h2>
-            {hasSkills ? (
+            {hasAny ? (
               <>
                 <p className="fc-count"><strong>{preview?.passing ?? '–'}</strong>{preview?.passing === 1 ? 'applicant passes' : 'applicants pass'} your must-haves</p>
                 {preview && (
@@ -194,7 +204,7 @@ export default function FindCandidates() {
                 )}
               </>
             ) : (
-              <p className="fc-count"><strong>{preview?.total ?? '–'}</strong>Pick at least one skill to see matches</p>
+              <p className="fc-count"><strong>{preview?.total ?? '–'}</strong>Set at least one filter to see matches</p>
             )}
           </section>
 

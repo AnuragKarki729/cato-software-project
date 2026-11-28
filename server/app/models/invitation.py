@@ -20,3 +20,6 @@ class Invitation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_utcnow, sa_column=Column(DateTime(timezone=False), nullable=False))
     responded_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=False), nullable=True))
     expires_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=False), nullable=True))
+    # Issue #4: when the applicant first opened their inbox with this invitation in it. A pending
+    # invitation with this set is shown to the recruiter as "Viewed".
+    viewed_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=False), nullable=True))

@@ -13,7 +13,7 @@ const canHover = () => typeof window !== 'undefined'
   && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
 
 export default function VideoPoster({ src, size = 'sm', kind, seconds, name = '', label,
-  emptyText = 'No pitch video yet', onPlay, preview = false }) {
+  emptyText = 'No pitch video yet', onPlay, preview = false, previewSeconds = PREVIEW_SECONDS }) {
   const video = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [previewing, setPreviewing] = useState(false);
@@ -57,10 +57,11 @@ export default function VideoPoster({ src, size = 'sm', kind, seconds, name = ''
       {src && (
         // #t=0.1 makes Safari paint the first frame before playback.
         <video ref={video} src={`${src}#t=0.1`} preload="metadata" playsInline controls={playing}
-          onEnded={() => setPlaying(false)} aria-label={label || `${name} video`}
+          loop={previewing} onEnded={() => setPlaying(false)} aria-label={label || `${name} video`}
           onTimeUpdate={previewing ? (event) => {
             // Loop the opening rather than playing the whole thing under the cursor.
-            if (event.currentTarget.currentTime > PREVIEW_SECONDS) event.currentTarget.currentTime = 0;
+            // previewSeconds={Infinity} plays the whole video instead (the review page's own pitch).
+            if (event.currentTarget.currentTime > previewSeconds) event.currentTarget.currentTime = 0;
           } : undefined} />
       )}
       {!playing && (

@@ -38,6 +38,8 @@ class ExploreCandidate(BaseModel):
     gpa: float | None = None
     internships: int | None = None
     skills: list[str] = []
+    # The "Stands out for" pills on the About card, read off the resume.
+    talking_points: list[str] = []
     videos: list[VideoOut] = []  # the pitch first, then the extras, newest first
     # The explore feed ends on the resume: one more step sideways past the last video shows
     # it. Recruiters may see it, which is the same rule GET /api/profiles/{id} applies.

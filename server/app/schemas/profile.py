@@ -104,6 +104,9 @@ class ProfileOut(BaseModel):
     resume_uploaded_at: datetime | None = None
     # "none", "pending", "done" or "failed": how the background read of the resume went.
     parse_status: str = "none"
+    # Read off the resume: the applicant's prompts for the pitch, and the "Stands out for"
+    # pills a recruiter sees on the About card.
+    talking_points: list[str] = Field(default_factory=list)
     details_complete: bool = False
     onboarding_complete: bool = False
     updated_at: datetime | None = None

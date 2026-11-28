@@ -11,7 +11,7 @@ import OnboardingStepper from '../../components/OnboardingStepper.jsx';
 import ResumeUpload from '../../components/ui/ResumeUpload.jsx';
 import ResumeViewer from '../../components/ui/ResumeViewer.jsx';
 import { Button, Logo, SelectField, TextField, Toast } from '../../components/ui/primitives.jsx';
-import { yearLabel } from '../../utils/format.js';
+import { tidyGpa, yearLabel } from '../../utils/format.js';
 
 const EMPTY = { university: '', field_of_study: '', year: '', gpa: '', internships: '', skills: [] };
 
@@ -69,8 +69,9 @@ export default function OnboardingProfile({ editing = false }) {
   };
 
   function gpaError(value) {
-    if (value === '') return null;
-    if (!/^\d(\.\d{1,2})?$/.test(value.trim()) || Number(value) > 4) return 'Enter a GPA from 0.00 to 4.00, with up to two decimals';
+    const tidy = tidyGpa(value);
+    if (tidy === '') return null;
+    if (!/^\d\.\d{2}$/.test(tidy) || Number(tidy) > 4) return 'Enter a GPA from 0.00 to 4.00';
     return null;
   }
 
@@ -79,7 +80,7 @@ export default function OnboardingProfile({ editing = false }) {
       university: form.university || null,
       field_of_study: form.field_of_study || null,
       year: numberOrNull(form.year),
-      gpa: form.gpa.trim() === '' ? null : Number(form.gpa),
+      gpa: form.gpa.trim() === '' ? null : Number(tidyGpa(form.gpa)),
       internships: numberOrNull(form.internships),
       skills: form.skills,
     };
@@ -245,7 +246,7 @@ export default function OnboardingProfile({ editing = false }) {
               </div>
               <div className="ob-row">
                 <TextField label="GPA" value={form.gpa} onChange={(event) => set('gpa')(event.target.value)}
-                  onBlur={() => setErrors((current) => ({ ...current, gpa: gpaError(form.gpa) || undefined }))}
+                  onBlur={() => { const tidy = tidyGpa(form.gpa); set('gpa')(tidy); setErrors((current) => ({ ...current, gpa: gpaError(tidy) || undefined })); }}
                   inputMode="decimal" placeholder="e.g. 3.62" autoComplete="off" required
                   help="On a 4.00 scale, two decimals" error={errors.gpa} />
                 <SelectField label="Internships completed" value={form.internships} onChange={set('internships')} placeholder="Select a number"

@@ -506,3 +506,19 @@ select.ui-control.is-empty { color: var(--ui-slate-500); }
 /* A thumb drags the row, so the chevrons are for a mouse only. */
 @media (hover: none) { .cr__arrow { display: none; } }
 @media (prefers-reduced-motion: reduce) { .cr__track { scroll-behavior: auto; } }
+
+/* Tablet (768-1023px): the full header did not fit. The links wrapped onto two lines and
+   Log out was pushed off the screen, so the page scrolled sideways. Here the links stay on one
+   line and the extras collapse to icons: PDPA badge, the name beside the avatar, and the
+   Log out label (font-size 0 hides the text but keeps it as the button's accessible name). */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .ui-header { padding: 0 20px; }
+  .ui-header__left { gap: 20px; }
+  .ui-header__links { gap: 18px; }
+  .ui-header__link { white-space: nowrap; font-size: 14px; }
+  .ui-header__right { gap: 8px; }
+  .ui-header__name { display: none; }
+  .ui-header__pdpa { padding: 0; width: 32px; justify-content: center; }
+  .ui-header__pdpa span { display: none; }
+  .ui-header__logout { font-size: 0; gap: 0; padding: 0 8px; }
+}

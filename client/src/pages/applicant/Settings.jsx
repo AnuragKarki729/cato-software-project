@@ -7,13 +7,77 @@
 //
 // Nothing is deleted by either of them and an invitation already sent still stands, which the
 // page says rather than leaving the applicant to guess.
+//
+// Both roles: "Delete account" (DELETE /api/auth/me) at the bottom, behind the password. Recruiters
+// see only that, since visibility is an applicant's setting.
 import { useEffect, useState } from 'react';
-import { Ban, CircleAlert, EyeOff, Plus, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Ban, CircleAlert, EyeOff, Plus, Trash2, X } from 'lucide-react';
 import { api } from '../../api.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 import AppHeader from '../../components/AppHeader.jsx';
-import { Button, Checkbox, TextField, Toast } from '../../components/ui/primitives.jsx';
+import { Button, Checkbox, Dialog, TextField, Toast } from '../../components/ui/primitives.jsx';
+
+function DeleteAccount({ isApplicant }) {
+  const { forget } = useAuth();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function remove(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      await api.delete('/auth/me', { password });
+      forget();
+      navigate('/', { replace: true });
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  }
+
+  const close = () => { if (!busy) { setOpen(false); setPassword(''); setError(''); } };
+  const gone = isApplicant
+    ? 'your profile, resume, videos and invitations'
+    : 'your saved searches, bookmarks, search filter and the invitations you sent';
+
+  return (
+    <section className="ui-card st-card st-danger">
+      <div className="st-card__head">
+        <span className="st-card__icon"><Trash2 aria-hidden="true" /></span>
+        <div>
+          <h2 className="ui-h5">Delete account</h2>
+          <p className="ui-text-soft">Permanently deletes your account and {gone}. This cannot be undone.</p>
+        </div>
+      </div>
+      <div><Button variant="secondary" size="md" icon={Trash2} className="st-danger__button" onClick={() => setOpen(true)}>Delete my account</Button></div>
+      {open && (
+        <Dialog label="Delete your account?" onClose={close}>
+          <form className="st-danger__form" onSubmit={remove}>
+            <h2 className="ui-h5">Delete your account?</h2>
+            <p className="ui-text-soft">This deletes {gone}, for good. Enter your password to confirm.</p>
+            <TextField label="Password" type="password" value={password} autoFocus autoComplete="current-password"
+              onChange={(event) => setPassword(event.target.value)} error={error || undefined} disabled={busy} />
+            <div className="ui-dialog__actions">
+              <Button variant="secondary" size="md" onClick={close} disabled={busy}>Cancel</Button>
+              <Button type="submit" variant="primary" size="md" icon={Trash2} className="st-danger__confirm" disabled={busy || !password}>
+                {busy ? 'Deleting…' : 'Delete forever'}
+              </Button>
+            </div>
+          </form>
+        </Dialog>
+      )}
+    </section>
+  );
+}
 
 export default function Settings() {
+  const { user } = useAuth();
+  const isApplicant = user?.role === 'applicant';
   const [hidden, setHidden] = useState(false);
   const [blocked, setBlocked] = useState([]);
   const [company, setCompany] = useState('');
@@ -23,6 +87,7 @@ export default function Settings() {
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
+    if (!isApplicant) { setLoaded(true); return undefined; }  // recruiters have no profile to load
     let active = true;
     api.get('/profiles/me')
       .then((profile) => {
@@ -33,7 +98,7 @@ export default function Settings() {
       .catch((err) => { if (active) setError(err.message); })
       .finally(() => { if (active) setLoaded(true); });
     return () => { active = false; };
-  }, []);
+  }, [isApplicant]);
 
   // Saved as one object, so the toggle and the list cannot disagree with what is stored.
   async function save(next) {
@@ -73,13 +138,15 @@ export default function Settings() {
       <main className="ui-main st-main">
         <div className="st-head">
           <h1 className="ui-h3">Settings</h1>
-          <p className="ui-text-soft">Who can find you on Cato. Nothing here deletes your profile, your resume or your videos.</p>
+          <p className="ui-text-soft">{isApplicant
+            ? 'Who can find you on Cato, and your account.'
+            : 'Your account.'}</p>
         </div>
 
         {error && <p className="ui-alert ui-alert--error" role="alert"><CircleAlert />{error}</p>}
         {!loaded && <span className="ui-skeleton st-skeleton" />}
 
-        {loaded && (
+        {loaded && isApplicant && (
           <>
             <section className="ui-card st-card">
               <div className="st-card__head">
@@ -142,6 +209,7 @@ export default function Settings() {
             </section>
           </>
         )}
+        {loaded && <DeleteAccount isApplicant={isApplicant} />}
       </main>
       <Toast toast={toast} onClose={() => setToast(null)} />
     </div>

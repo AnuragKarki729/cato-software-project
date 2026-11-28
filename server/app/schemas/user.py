@@ -14,6 +14,12 @@ class UserOut(BaseModel):
     onboarding_step: Literal['profile', 'video', 'review', 'complete'] = 'complete'
 
 
+class DeleteAccountIn(BaseModel):
+    """Deleting an account asks for the password again, so a session left open on someone
+    else's computer is not enough to delete it."""
+    password: str = Field(min_length=1, max_length=128)
+
+
 class LogInIn(BaseModel):
     email: str = Field(max_length=254)
     password: str = Field(min_length=1, max_length=128)

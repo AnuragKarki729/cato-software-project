@@ -182,6 +182,7 @@ def explore_candidates(
             gpa=profile.gpa,
             internships=profile.internships,
             skills=split_skills(profile.skills),
+            talking_points=[p for p in (profile.talking_points or "").split("\n") if p.strip()],
             videos=[as_video_out(video) for video in clips.get(applicant_id, [])],
             resume_url=(storage_service.get_url(profile.resume_location, RESUME_TYPE)
                         if profile.resume_location else None),

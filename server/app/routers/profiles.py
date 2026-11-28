@@ -46,6 +46,7 @@ def profile_out(profile: ApplicantProfile, user: User) -> ProfileOut:
         resume_size=profile.resume_size,
         resume_uploaded_at=profile.resume_uploaded_at,
         parse_status=profile.parse_status,
+        talking_points=[p for p in (profile.talking_points or "").split("\n") if p.strip()],
         details_complete=profile.details_complete,
         onboarding_complete=profile.onboarding_complete,
         updated_at=profile.updated_at,
@@ -121,8 +122,8 @@ async def fill_from_resume(user_id: int, pdf_bytes: bytes) -> None:
     """Read the resume with an LLM and fill in whatever the applicant has left blank.
 
     Runs in the background after the upload returns, so nothing in the UI waits on it. Only
-    empty fields are written: anything the applicant has already typed wins, and
-    field_of_study is never touched because they always choose that themselves.
+    empty fields are written: anything the applicant has already typed wins. Field of study is
+    picked from the app's own list (never invented) and the applicant confirms it on review.
     """
     def finish(status: str, values: dict | None = None) -> None:
         with Session(engine) as session:
@@ -130,6 +131,11 @@ async def fill_from_resume(user_id: int, pdf_bytes: bytes) -> None:
             if profile is None:
                 return
             values = dict(values or {})
+            # Already one of the app's fields (the model could only pick from the list); this
+            # fetches its exact stored spelling and never adds a new field.
+            if values.get("field_of_study"):
+                values["field_of_study"] = vocabulary_service.resolve(
+                    session, vocabulary_service.FIELD_OF_STUDY, values["field_of_study"], create=False)
             # A university read off a resume joins the vocabulary like any other, so the
             # dropdown can show it and the next applicant from there picks the same spelling.
             if values.get("university"):
@@ -145,6 +151,10 @@ async def fill_from_resume(user_id: int, pdf_bytes: bytes) -> None:
                 # 0 internships and a 0.0 GPA are real answers, so only None and emptiness count.
                 return value is None or value == "" or value == []
 
+            # Talking points are not something the applicant typed, so the read always sets them.
+            points = values.pop("talking_points", None)
+            if points is not None:
+                profile.talking_points = "\n".join(points)[:1000]
             for field, value in values.items():
                 if blank(value) or not blank(getattr(profile, field, None)):
                     continue  # never write over something the applicant has already given
@@ -160,7 +170,10 @@ async def fill_from_resume(user_id: int, pdf_bytes: bytes) -> None:
             # A scan with no text layer is normal, not a failure of ours.
             finish("failed")
             return
-        fields = await resume_ai_service.ask_model(text)
+        # The fields of study the model may choose from: the app's current list.
+        with Session(engine) as session:
+            known_fields = vocabulary_service.list_terms(session, vocabulary_service.FIELD_OF_STUDY)
+        fields = await resume_ai_service.ask_model(text, known_fields)
     except Exception as err:  # noqa: BLE001 - a failed parse must never break onboarding
         log.warning("resume parsing failed for user %s: %s", user_id, err)
         finish("failed")
@@ -195,6 +208,7 @@ def upload_resume(background: BackgroundTasks, file: UploadFile = File(...),
     profile.resume_size = len(data)
     profile.resume_uploaded_at = utcnow()
     profile.parse_status = "pending"
+    profile.talking_points = ""  # the new resume's read brings its own
     profile.updated_at = utcnow()
     session.add(profile)
     session.commit()

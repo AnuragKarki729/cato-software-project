@@ -131,17 +131,22 @@ def test_ranked_results_for_the_demo_filter(client, users, fake_storage):
     assert body["filter"] == {"field_of_study": "Computer Science", "min_year": 3, "min_internships": 1,
                               "skills": ["Python", "SQL", "React", "Docker"], "min_gpa": 3.0}
     results = body["results"]
-    assert body["total"] == len(results) > 0
-    scores = [r["match_score"] for r in results]
+    assert body["total"] == len(results) == body["full_total"] + body["close_total"]
+    full, close = results[:body["full_total"]], results[body["full_total"]:]
+    assert full, "the demo filter has full matches"
+    scores = [r["match_score"] for r in full]
     assert scores == sorted(scores, reverse=True)
-    assert [r["rank"] for r in results] == list(range(1, len(results) + 1))
-    for r in results:  # every result passes the hard filters
+    assert [r["rank"] for r in full] == list(range(1, len(full) + 1))
+    for r in full:  # every full match passes the hard filters
         assert r["field_of_study"] == "Computer Science" and r["year"] >= 3 and r["gpa"] >= 3.0 and r["internships"] >= 1
-        assert r["meets_requirements"] is True
+        assert r["meets_requirements"] is True and r["missed"] == []
         assert "email" not in r
-    names = [r["name"] for r in results]
-    assert "Sara Ahmed" not in names  # Business
-    assert "Arif Rahman" not in names  # year 2, no internships
+    for r in close:  # close matches come after, unranked, and say what they miss
+        assert r["meets_requirements"] is False and r["rank"] is None and r["missed"]
+    by_name = {r["name"]: r for r in results}
+    # Neither passes every must-have, but each meets at least one, so both are close matches.
+    assert by_name["Sara Ahmed"]["missed"] == ["Field of study"]  # Business
+    assert set(by_name["Arif Rahman"]["missed"]) == {"Year of study", "Internships"}  # year 2, none
     top = results[0]
     assert top["name"] == "Mei Chen" and top["matched_skills"] == ["Python", "SQL", "React", "Docker"]
     assert top["breakdown"] == {"skills": 60.0, "gpa": 17.8, "internships": 13.3}
@@ -242,3 +247,35 @@ def test_live_preview_counts(client, users):
     assert counts["total"] >= counts["field"] >= counts["field_and_year"] >= counts["passing"]
     assert counts["passing"] >= 1  # the form in FORM is one a seeded applicant does match
     assert client.get("/api/matching/preview", headers=as_user(users["applicant"])).status_code == 403
+
+
+# ---------- close matches ----------
+
+def test_close_matches_show_when_nobody_meets_every_must_have(client, users, fake_storage):
+    """Soft lookup: a search nobody fully meets still shows who came closest, labelled."""
+    headers = as_user(users["recruiter"])
+    body = client.get("/api/matching/results?field_of_study=Computer%20Science&min_gpa=3.95&min_internships=3&limit=50",
+                      headers=headers).json()
+    assert body["full_total"] == 0
+    assert body["close_total"] == body["total"] > 0
+    for r in body["results"]:
+        assert r["meets_requirements"] is False and r["rank"] is None
+        checks = {"Field of study", "GPA", "Internships"}
+        assert set(r["missed"]) < checks  # misses some, but met at least one
+
+
+def test_close_matches_rank_by_must_haves_met_then_score(client, users, fake_storage):
+    headers = as_user(users["recruiter"])
+    body = client.get("/api/matching/results?field_of_study=Computer%20Science&min_gpa=3.95&min_internships=3&limit=50",
+                      headers=headers).json()
+    met = [3 - len(r["missed"]) for r in body["results"]]
+    assert met == sorted(met, reverse=True)
+
+
+def test_a_candidate_meeting_no_set_must_have_is_left_out(client, users, fake_storage):
+    """The stricter rule: sharing a skill alone does not make someone a close match."""
+    headers = as_user(users["recruiter"])
+    body = client.get("/api/matching/results?field_of_study=Design&min_gpa=3.9&skills=Python&limit=50",
+                      headers=headers).json()
+    for r in body["results"]:
+        assert r["field_of_study"] == "Design" or r["gpa"] >= 3.9

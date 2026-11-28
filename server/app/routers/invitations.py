@@ -7,6 +7,10 @@ GET    /api/invitations/sent           — recruiter's sent invitations
 GET    /api/invitations/received       — applicant's received invitations
 POST   /api/invitations/{id}/accept    — applicant accepts
 POST   /api/invitations/{id}/decline   — applicant declines (optional reason)
+
+Statuses the recruiter sees (issue #4): pending ("Sent"), viewed, accepted, declined, expired.
+"viewed" is not stored as a status: it is a pending invitation whose applicant has opened their
+inbox since it arrived, so accepting and declining still only ever deal with "pending".
 """
 from datetime import datetime, timedelta, timezone
 
@@ -17,6 +21,7 @@ from app.database import get_session
 from app.models import ApplicantProfile, User
 from app.models.invitation import Invitation
 from app.schemas.invitation import (
+    DEFAULT_DECLINE_REASON,
     InvitationCreate,
     InvitationDecline,
     ReceivedInvitation,
@@ -37,6 +42,11 @@ def _expire_if_needed(inv: Invitation) -> Invitation:
     if inv.status == "pending" and inv.expires_at and _utcnow() >= inv.expires_at:
         inv.status = "expired"
     return inv
+
+
+def _shown_status(inv: Invitation) -> str:
+    """What the recruiter sees: pending splits into "pending" (sent) and "viewed"."""
+    return "viewed" if inv.status == "pending" and inv.viewed_at else inv.status
 
 
 def _date_str(dt: datetime | None) -> str:
@@ -82,6 +92,7 @@ def send_invitation(body: InvitationCreate,
         existing.status = "pending"
         existing.decline_reason = None
         existing.responded_at = None
+        existing.viewed_at = None
         existing.created_at = _utcnow()
         existing.expires_at = _utcnow() + timedelta(days=EXPIRY_DAYS)
         session.add(existing)
@@ -141,9 +152,10 @@ def sent_invitations(user: User = Depends(get_current_recruiter),
             applicant_id=inv.applicant_id,
             name=applicant.name if applicant else "Unknown",
             detail=" · ".join(detail_parts) if detail_parts else "",
-            status=inv.status,
+            status=_shown_status(inv),
             date=_date_str(inv.created_at),
             email=email,
+            decline_reason=inv.decline_reason if inv.status == "declined" else None,
         ))
     session.commit()
     return results
@@ -158,14 +170,21 @@ def received_invitations(user: User = Depends(get_current_applicant),
     ).all()
 
     results = []
+    now = _utcnow()
     for inv in invitations:
         _expire_if_needed(inv)
+        # Opening the inbox is what "viewed" means: the applicant has now seen it.
+        if inv.status == "pending" and inv.viewed_at is None:
+            inv.viewed_at = now
+            session.add(inv)
         recruiter = session.get(User, inv.recruiter_id)
         company = recruiter.company_name or "A company" if recruiter else "Unknown"
         results.append(ReceivedInvitation(
             id=inv.id,
             company=company,
             recruiter=recruiter.name if recruiter else "Unknown",
+            recruiter_email=recruiter.email if recruiter and inv.status == "accepted" else None,
+            decline_reason=inv.decline_reason if inv.status == "declined" else None,
             team="",
             message=inv.message,
             status=inv.status,
@@ -200,6 +219,7 @@ def accept_invitation(invitation_id: int,
         id=inv.id,
         company=recruiter.company_name or "A company" if recruiter else "Unknown",
         recruiter=recruiter.name if recruiter else "Unknown",
+        recruiter_email=recruiter.email if recruiter else None,
         team="",
         message=inv.message,
         status=inv.status,
@@ -215,8 +235,10 @@ def decline_invitation(invitation_id: int,
     inv = _answer_invitation(invitation_id, user, session)
     inv.status = "declined"
     inv.responded_at = _utcnow()
-    if body and body.reason:
-        inv.decline_reason = body.reason[:500]
+    # Optional: blank (or no body at all) gets the polite default, so the recruiter always
+    # reads a reason rather than nothing.
+    reason = " ".join((body.reason or "").split()) if body else ""
+    inv.decline_reason = reason or DEFAULT_DECLINE_REASON
     session.commit()
     session.refresh(inv)
 
@@ -228,5 +250,6 @@ def decline_invitation(invitation_id: int,
         team="",
         message=inv.message,
         status=inv.status,
+        decline_reason=inv.decline_reason,
         date=_date_str(inv.responded_at),
     )
